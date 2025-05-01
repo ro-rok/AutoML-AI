@@ -5,8 +5,10 @@ from app.routes.upload import session_store
 import pandas as pd
 import numpy as np
 from app.utils.preprocessing import apply_encoding, apply_scaling, apply_balancing
-from app.utils.models import train_and_evaluate
+from app.utils.models import MODEL_MAP, train_and_evaluate
 from app.utils.supabase_client import save_job_record
+from app.utils.explainability import get_shap_values
+
 
 router = APIRouter()
 
@@ -203,6 +205,37 @@ async def train_model(payload: TrainRequest):
             "evaluation": scores,
             "rows": len(df),
             "features": X.shape[1]
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ExplainRequest(BaseModel):
+    session_id: str
+    target_column: str
+    model_key: str
+    hyperparameters: Optional[Dict] = {}
+
+@router.post("/explain")
+async def explain_model(payload: ExplainRequest):
+    session_id = payload.session_id
+    if session_id not in session_store:
+        raise HTTPException(status_code=404, detail="Invalid session ID.")
+    
+    df = session_store[session_id]
+    y = df[payload.target_column]
+    X = df.drop(columns=[payload.target_column])
+
+    try:
+        model_name, params_used, _ = train_and_evaluate(payload.model_key, X, y, payload.hyperparameters)
+        model = MODEL_MAP[payload.model_key](**params_used)
+        model.fit(X, y)
+
+        shap_values = get_shap_values(model, X, model_type="tree" if "tree" in payload.model_key else "default")
+
+        return {
+            "session_id": session_id,
+            "shap_importance": shap_values
         }
 
     except Exception as e:
