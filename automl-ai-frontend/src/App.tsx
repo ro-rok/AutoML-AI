@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import CleanPage from './pages/CleanPage';
 import EDAPage from './pages/EDAPage';
 import TransformPage from './pages/TransformPage';
+import TrainPage from './pages/TrainPage';
 
 
 const PagePlaceholder = ({ name }: { name: string }) => (
@@ -21,7 +22,7 @@ const App = () => {
             <Route path="/clean" element={<CleanPage />} />
             <Route path="/eda" element={<EDAPage />} />
             <Route path="/transform" element={<TransformPage />} />
-            <Route path="/train" element={<PagePlaceholder name="Train" />} />
+            <Route path="/train" element={<TrainPage />} />
             <Route path="/export" element={<PagePlaceholder name="Export" />} />
             <Route path="*" element={<Navigate to="/upload" replace />} />
           </Routes>
