@@ -18,4 +18,3 @@ psycopg2-binary
 requests
 supabase
 shap
-python-dotenv
