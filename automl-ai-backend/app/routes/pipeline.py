@@ -144,6 +144,10 @@ async def transform_data(payload: TransformRequest):
         if payload.encoding and payload.encoding != "none":
             X = apply_encoding(X, payload.encoding, payload.encoding_columns)
 
+        # Apply skewness fix
+        if payload.skew_fix_strategy and payload.skew_fix_strategy != "none":
+            X = apply_skewness_fix(X, payload.skew_fix_strategy, payload.skew_fix_columns)
+
         # Apply scaling only on user-selected numeric columns
         if payload.scaling and payload.scaling != "none":
             X = apply_scaling(X, payload.scaling, payload.scaling_columns)
@@ -151,10 +155,6 @@ async def transform_data(payload: TransformRequest):
         # Apply balancing
         if payload.balancing and payload.balancing != "none":
             X, y = apply_balancing(X, y, payload.balancing)
-
-        # Apply skewness fix
-        if payload.skew_fix_strategy and payload.skew_fix_strategy != "none":
-            X = apply_skewness_fix(X, payload.skew_fix_strategy, payload.skew_fix_columns)
 
         df_transformed = pd.concat([X, y], axis=1)
         session_store[session_id]["data"] = df_transformed
@@ -182,6 +182,9 @@ class TrainRequest(BaseModel):
     target_column: str
     model_key: str
     hyperparameters: Optional[Dict] = {}
+    test_size: Optional[float] = 0.2
+    random_state: Optional[int] = 42
+    stratify: Optional[bool] = True
 
 @router.post("/train")
 async def train_model(payload: TrainRequest):
@@ -195,16 +198,29 @@ async def train_model(payload: TrainRequest):
     X = df.drop(columns=[payload.target_column])
 
     try:
-        model_name, params_used, scores = train_and_evaluate(payload.model_key, X, y, payload.hyperparameters)
-
-        save_job_record(
-            session_id=session_id,
-            filename=meta["filename"],
-            df_shape=df.shape,
-            pipeline_steps=meta["steps"],
-            model_config={"model": model_name, "params": params_used},
-            metrics=scores
+        model_name, params_used, scores, cm = train_and_evaluate(
+            model_key=payload.model_key,
+            X=X,
+            y=y,
+            user_params=payload.hyperparameters,
+            test_size=payload.test_size if hasattr(payload, 'test_size') else 0.2,
+            random_state=payload.random_state if hasattr(payload, 'random_state') else 42,
+            stratify=payload.stratify if hasattr(payload, 'stratify') else True
         )
+        user_id = meta.get("user_id", "00000000-0000-0000-0000-000000000000")
+
+        try:
+            save_job_record(
+                user_id=user_id,
+                session_id=session_id,
+                filename=meta["filename"],
+                df_shape=df.shape,
+                pipeline_steps=meta["steps"],
+                model_config={"model": model_name, "params": params_used},
+                metrics=scores
+            )
+        except Exception as e:
+            print("Error saving job record:", e)
 
         return {
             "session_id": session_id,
@@ -212,10 +228,12 @@ async def train_model(payload: TrainRequest):
             "params_used": params_used,
             "evaluation": scores,
             "rows": len(df),
-            "features": X.shape[1]
+            "features": X.shape[1],
+            "confusion_matrix": cm if cm is not None else None
         }
 
     except Exception as e:
+        print("Train Error:", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ExplainRequest(BaseModel):
@@ -247,4 +265,5 @@ async def explain_model(payload: ExplainRequest):
         }
 
     except Exception as e:
+        print("Explain Error:", e)
         raise HTTPException(status_code=500, detail=str(e))
