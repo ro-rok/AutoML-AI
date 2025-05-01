@@ -8,9 +8,6 @@ import TrainPage from './pages/TrainPage';
 import ExportPage from './pages/ExportPage';
 
 
-const PagePlaceholder = ({ name }: { name: string }) => (
-  <div className="p-10 text-xl font-semibold">{name} Page</div>
-);
 
 const App = () => {
   return (

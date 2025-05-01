@@ -7,13 +7,29 @@ export default function UploadPage() {
   const { setSessionId } = useSessionStore();
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file) {
+      alert("Please select a file.");
+      return;
+    }
+  
     const form = new FormData();
-    form.append('file', file);
-    const res = await api.post('/upload/file', form);
-    setSessionId(res.data.session_id);
-    console.log(res.data);
-  };
+    form.append("file", file);
+  
+    try {
+      const res = await api.post("/upload/file", form, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+  
+      console.log("✅ Upload Success:", res.data);
+      setSessionId(res.data.session_id);
+  
+    } catch (error: any) {
+      console.error("❌ Upload Error:", error.response?.data || error.message);
+      alert("Upload failed. Check console for details.");
+    }
+  };  
 
   return (
     <div className="p-10">

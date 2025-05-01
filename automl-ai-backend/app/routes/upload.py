@@ -4,6 +4,8 @@ import pandas as pd
 import uuid
 from io import BytesIO
 from typing import List, Dict
+import traceback
+import numpy as np
 
 router = APIRouter()
 
@@ -52,9 +54,10 @@ async def upload_dataset(file: UploadFile = File(...)):
         return JSONResponse(content={
             "session_id": session_id,
             "filename": file.filename,
-            "preview": df.head(5).to_dict(orient="records"),
+            "preview": df.head(5).replace({np.nan: None}).to_dict(orient="records"),
             "schema": schema
         })
 
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
