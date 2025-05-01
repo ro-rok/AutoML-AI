@@ -4,6 +4,9 @@ from pydantic import BaseModel
 from typing import Dict
 from app.utils.groq_assistant import build_prompt, stream_groq_response
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 router = APIRouter()
 
