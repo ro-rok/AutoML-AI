@@ -10,7 +10,7 @@ router = APIRouter()
 # Request schema for cleaning
 class CleaningRequest(BaseModel):
     session_id: str
-    fill_strategies: Dict[str, str]  # e.g., {"age": "mean", "bmi": "median", "gender": "mode"}
+    fill_strategies: Dict[str, str]  # Column name to fill and strategy (mean, median, mode, drop)
 
 @router.post("/clean")
 async def clean_data(payload: CleaningRequest):
@@ -51,6 +51,55 @@ async def clean_data(payload: CleaningRequest):
             "null_summary": null_summary,
             "rows": df.shape[0],
             "columns": df.shape[1]
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class EDARequest(BaseModel):
+    session_id: str
+    target_column: Optional[str] = None  # For classification imbalance
+
+@router.post("/eda")
+async def perform_eda(payload: EDARequest):
+    session_id = payload.session_id
+    target_col = payload.target_column
+
+    if session_id not in session_store:
+        raise HTTPException(status_code=404, detail="Invalid session ID.")
+
+    df = session_store[session_id]
+
+    try:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+
+        # Correlation
+        corr_matrix = df[numeric_cols].corr().round(2).fillna(0).to_dict()
+
+        # Skewness
+        skewness = df[numeric_cols].skew().round(2).fillna(0).to_dict()
+
+        # Unique count (for encoding decisions)
+        uniques = {col: int(df[col].nunique()) for col in cat_cols}
+
+        # Class distribution if target column is provided
+        class_dist = {}
+        if target_col and target_col in df.columns:
+            class_dist = df[target_col].value_counts().to_dict()
+
+        # Describe numeric columns
+        stats = df[numeric_cols].describe().round(2).fillna(0).to_dict()
+
+        return {
+            "session_id": session_id,
+            "correlation_matrix": corr_matrix,
+            "skewness": skewness,
+            "unique_values": uniques,
+            "class_distribution": class_dist,
+            "numeric_summary": stats,
+            "num_rows": df.shape[0],
+            "num_columns": df.shape[1]
         }
 
     except Exception as e:
