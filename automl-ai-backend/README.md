@@ -104,7 +104,7 @@ Gain insight into the step-by-step journey from data upload to actionable model 
 - Identify key transformation points for troubleshooting.
 
 Take a closer look at the flow and let it guide you through an efficient, user-friendly pipeline experience.
-![Pipeline Sketch](.\src\automl_pipeline_flow.png)
+![Pipeline Sketch](./src/automl_pipeline_flow.png)
 
 ---
 
