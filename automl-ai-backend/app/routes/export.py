@@ -15,7 +15,7 @@ class ExportPDFRequest(BaseModel):
 @router.post("/pdf")
 async def export_pdf(payload: ExportPDFRequest):
     try:
-        path = generate_pdf(payload.session_id, payload.metadata, payload.metrics, payload.tips)
+        path = generate_pdf(payload.session_id, payload)
         return FileResponse(path, filename=path, media_type="application/pdf")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
