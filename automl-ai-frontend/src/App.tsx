@@ -1,6 +1,7 @@
 import UploadPage from './pages/UploadPage';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import CleanPage from './pages/CleanPage';
 
 const PagePlaceholder = ({ name }: { name: string }) => (
   <div className="p-10 text-xl font-semibold">{name} Page</div>
@@ -14,7 +15,7 @@ const App = () => {
         <div className="flex-1">
           <Routes>
             <Route path="/upload" element={<UploadPage />} />
-            <Route path="/clean" element={<PagePlaceholder name="Clean" />} />
+            <Route path="/clean" element={<CleanPage />} />
             <Route path="/eda" element={<PagePlaceholder name="EDA" />} />
             <Route path="/transform" element={<PagePlaceholder name="Transform" />} />
             <Route path="/train" element={<PagePlaceholder name="Train" />} />
