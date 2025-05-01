@@ -31,7 +31,14 @@ async def upload_dataset(file: UploadFile = File(...)):
 
         # Create UUID for this session
         session_id = str(uuid.uuid4())
-        session_store[session_id] = df
+        session_store[session_id] = {
+            "data": df,
+            "meta": {
+                "filename": file.filename,
+                "steps": {}
+            }
+        }
+
 
         # Generate schema preview
         schema = []
