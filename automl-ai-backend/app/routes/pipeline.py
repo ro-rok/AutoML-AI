@@ -5,7 +5,7 @@ from app.routes.upload import session_store
 import pandas as pd
 import numpy as np
 from app.utils.preprocessing import apply_encoding, apply_scaling, apply_balancing
-
+from app.utils.models import train_and_evaluate
 
 router = APIRouter()
 
@@ -154,6 +154,37 @@ async def transform_data(payload: TransformRequest):
             "session_id": session_id,
             "transformed_preview": df_transformed.head(5).to_dict(orient="records"),
             "shape": df_transformed.shape
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+class TrainRequest(BaseModel):
+    session_id: str
+    target_column: str
+    model_key: str
+    hyperparameters: Optional[Dict] = {}
+
+@router.post("/train")
+async def train_model(payload: TrainRequest):
+    session_id = payload.session_id
+    if session_id not in session_store:
+        raise HTTPException(status_code=404, detail="Invalid session ID.")
+
+    df = session_store[session_id]
+    y = df[payload.target_column]
+    X = df.drop(columns=[payload.target_column])
+
+    try:
+        model_name, params_used, scores = train_and_evaluate(payload.model_key, X, y, payload.hyperparameters)
+
+        return {
+            "session_id": session_id,
+            "model": model_name,
+            "params_used": params_used,
+            "evaluation": scores,
+            "rows": len(df),
+            "features": X.shape[1]
         }
 
     except Exception as e:
