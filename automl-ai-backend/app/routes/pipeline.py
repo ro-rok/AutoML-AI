@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from app.routes.upload import session_store
 import pandas as pd
 import numpy as np
-from app.utils.preprocessing import apply_encoding, apply_scaling, apply_balancing
+from app.utils.preprocessing import apply_encoding, apply_scaling, apply_balancing, apply_skewness_fix
 from app.utils.models import MODEL_MAP, train_and_evaluate
 from app.utils.supabase_client import save_job_record
 from app.utils.explainability import get_shap_values
@@ -114,10 +114,15 @@ async def perform_eda(payload: EDARequest):
 class TransformRequest(BaseModel):
     session_id: str
     target_column: str
-    encoding: Optional[str] = None          # "label" | "onehot"
-    scaling: Optional[str] = None           # "standard" | "minmax"
-    balancing: Optional[str] = None         # "smote" | "undersample"
-    drop_columns: Optional[List[str]] = []  # Optional columns to drop
+    encoding: Optional[str] = None
+    encoding_columns: Optional[List[str]] = []
+    scaling: Optional[str] = None
+    scaling_columns: Optional[List[str]] = []
+    balancing: Optional[str] = None
+    balancing_columns: Optional[List[str]] = []
+    drop_columns: Optional[List[str]] = []
+    skew_fix_strategy: Optional[str] = None
+    skew_fix_columns: Optional[List[str]] = []
 
 @router.post("/transform")
 async def transform_data(payload: TransformRequest):
@@ -130,44 +135,47 @@ async def transform_data(payload: TransformRequest):
 
     try:
         # Drop any columns user marked for exclusion
-        df.drop(columns=payload.drop_columns, errors='ignore', inplace=True)
+        df.drop(columns=payload.drop_columns + [target], errors='ignore', inplace=True)
 
-        # Separate X and y
-        X = df.drop(columns=[target])
-        y = df[target]
+        X = df.copy()
+        y = session_store[session_id]["data"][target]  # keep y from original
+    
+        # Apply encoding only on user-selected categorical columns
+        if payload.encoding and payload.encoding != "none":
+            X = apply_encoding(X, payload.encoding, payload.encoding_columns)
 
-        # Apply encoding
-        cat_columns = X.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
-        if payload.encoding:
-            X = apply_encoding(X, payload.encoding, cat_columns)
-
-        # Apply scaling
-        num_columns = X.select_dtypes(include=["int64", "float64"]).columns.tolist()
-        if payload.scaling:
-            X = apply_scaling(X, payload.scaling, num_columns)
+        # Apply scaling only on user-selected numeric columns
+        if payload.scaling and payload.scaling != "none":
+            X = apply_scaling(X, payload.scaling, payload.scaling_columns)
 
         # Apply balancing
-        if payload.balancing:
+        if payload.balancing and payload.balancing != "none":
             X, y = apply_balancing(X, y, payload.balancing)
 
-        # Combine again for preview
+        # Apply skewness fix
+        if payload.skew_fix_strategy and payload.skew_fix_strategy != "none":
+            X = apply_skewness_fix(X, payload.skew_fix_strategy, payload.skew_fix_columns)
+
         df_transformed = pd.concat([X, y], axis=1)
         session_store[session_id]["data"] = df_transformed
         session_store[session_id]["meta"]["steps"]["transform"] = {
-            "encoding": payload.encoding,
-            "scaling": payload.scaling,
-            "balancing": payload.balancing,
+            "encoding": {payload.encoding: payload.encoding_columns} if payload.encoding else {},
+            "scaling": {payload.scaling: payload.scaling_columns} if payload.scaling else {},
+            "balancing": {payload.balancing: payload.balancing_columns} if payload.balancing else {},
+            "skew_fix": {payload.skew_fix_strategy: payload.skew_fix_columns} if payload.skew_fix_strategy else {},
             "dropped_columns": payload.drop_columns
         }
 
         return {
             "session_id": session_id,
-            "transformed_preview": df_transformed.head(5).to_dict(orient="records"),
+            "transformed_preview": df_transformed.head(5).replace({np.nan: None}).to_dict(orient="records"),
             "shape": df_transformed.shape
         }
 
     except Exception as e:
+        print("Transform Error:", e)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 class TrainRequest(BaseModel):
     session_id: str
