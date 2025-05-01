@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from app.utils.preprocessing import apply_encoding, apply_scaling, apply_balancing
 from app.utils.models import train_and_evaluate
+from app.utils.supabase_client import save_job_record
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ async def clean_data(payload: CleaningRequest):
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
 
-    df = session_store[session_id].copy()
+    df = session_store[session_id]["data"].copy()
 
     try:
         # Apply fill strategy per column
@@ -38,8 +39,9 @@ async def clean_data(payload: CleaningRequest):
             else:
                 raise ValueError(f"Unknown strategy '{strategy}' for column '{col}'.")
 
-        # Update the session with cleaned data
-        session_store[session_id] = df
+        # Update the session with cleaned data and meta
+        session_store[session_id]["data"] = df
+        session_store[session_id]["meta"]["steps"]["clean"] = fill_map
 
         # Return summary
         null_summary = {
@@ -70,7 +72,7 @@ async def perform_eda(payload: EDARequest):
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
 
-    df = session_store[session_id]
+    df = session_store[session_id]["data"]
 
     try:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -121,7 +123,7 @@ async def transform_data(payload: TransformRequest):
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
 
-    df = session_store[session_id].copy()
+    df = session_store[session_id]["data"].copy()
     target = payload.target_column
 
     try:
@@ -148,7 +150,13 @@ async def transform_data(payload: TransformRequest):
 
         # Combine again for preview
         df_transformed = pd.concat([X, y], axis=1)
-        session_store[session_id] = df_transformed
+        session_store[session_id]["data"] = df_transformed
+        session_store[session_id]["meta"]["steps"]["transform"] = {
+            "encoding": payload.encoding,
+            "scaling": payload.scaling,
+            "balancing": payload.balancing,
+            "dropped_columns": payload.drop_columns
+        }
 
         return {
             "session_id": session_id,
@@ -158,7 +166,7 @@ async def transform_data(payload: TransformRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 class TrainRequest(BaseModel):
     session_id: str
     target_column: str
@@ -171,12 +179,22 @@ async def train_model(payload: TrainRequest):
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
 
-    df = session_store[session_id]
+    df = session_store[session_id]["data"]
+    meta = session_store[session_id]["meta"]
     y = df[payload.target_column]
     X = df.drop(columns=[payload.target_column])
 
     try:
         model_name, params_used, scores = train_and_evaluate(payload.model_key, X, y, payload.hyperparameters)
+
+        save_job_record(
+            session_id=session_id,
+            filename=meta["filename"],
+            df_shape=df.shape,
+            pipeline_steps=meta["steps"],
+            model_config={"model": model_name, "params": params_used},
+            metrics=scores
+        )
 
         return {
             "session_id": session_id,
