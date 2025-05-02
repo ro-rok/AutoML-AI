@@ -11,7 +11,7 @@ client = create_client(SUPABASE_URL, SERVICE_ROLE)
 anon_client = create_client(SUPABASE_URL, ANON_KEY)
 
 def save_job_record(session_id, user_id, filename, df_shape, pipeline_steps, model_config, metrics):
-    return client.table("ml_jobs").insert({
+    return client.table("ml_jobs").upsert({
         "id": session_id,
         "user_id": user_id,
         "filename": filename,
