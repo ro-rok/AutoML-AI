@@ -34,9 +34,21 @@ export default function TransformPage() {
   }, [sessionId]);
 
   const handleTransform = async () => {
+    console.log("Transforming with params:", {
+      sessionId,
+      target,
+      encoding,
+      encodingCols,
+      scaling,
+      scalingCols,
+      balancing,
+      exclude,
+      skewness,
+      skewCols,
+    });
     const res = await api.post('/pipeline/transform', {
       session_id: sessionId,
-      target_column: target,
+      target_column: target || availableCols[0],
       encoding,
       encoding_columns: encodingCols,
       scaling,
