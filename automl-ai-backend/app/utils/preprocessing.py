@@ -6,6 +6,10 @@ from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 
 def apply_encoding(df: pd.DataFrame, method: str, cat_columns: list) -> pd.DataFrame:
+    print(f"Applying {method} encoding to columns: {cat_columns}")
+    if not cat_columns:
+        print("No categorical columns provided for encoding.")
+        return df
     try:
         df = df.copy()
         if method == "label":
