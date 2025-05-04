@@ -20,11 +20,13 @@ export default function CleanPage() {
 
   const clean = async () => {
     setLoading(true);
+    console.log('targetColumn', targetColumn);
     const res = await api.post('/pipeline/clean', {
       session_id: sessionId,
       fill_strategies: strategies,
       target_column: targetColumn,
     });
+    console.log(res.data);
     setPreview(res.data.preview);
     setLoading(false);
   };
