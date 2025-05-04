@@ -6,13 +6,13 @@ import EDAPage from './pages/EDAPage';
 import TransformPage from './pages/TransformPage';
 import TrainPage from './pages/TrainPage';
 import ExportPage from './pages/ExportPage';
-
+import ChatAssistant from './components/ChatAssistant';
 
 
 const App = () => {
   return (
     <BrowserRouter>
-      <div className="flex">
+      <div className="flex min-h-screen">
         <Sidebar />
         <div className="flex-1">
           <Routes>
@@ -24,6 +24,9 @@ const App = () => {
             <Route path="/export" element={<ExportPage />} />
             <Route path="*" element={<Navigate to="/upload" replace />} />
           </Routes>
+        </div>
+        <div className="fixed bottom-0 right-0 p-4">
+          <ChatAssistant />
         </div>
       </div>
     </BrowserRouter>
