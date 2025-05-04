@@ -35,6 +35,7 @@ async def upload_dataset(file: UploadFile = File(...)):
             "data": df,
             "meta": {
                 "filename": file.filename,
+                "target_column": None,
                 "steps": {}
             }
         }
