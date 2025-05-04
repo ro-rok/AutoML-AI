@@ -4,7 +4,7 @@ import { useSessionStore } from '../store/useSessionStore';
 
 const ALL_PARAMS: Record<string, Record<string, any>> = {
   logistic: {
-    penalty: ["l1", "l2", "elasticnet", "none"],
+    penalty: ["l2", "l1", "elasticnet", "none"],
     solver: ["newton-cg", "lbfgs", "liblinear", "sag", "saga"],
     C: 1.0,
     max_iter: 100,
@@ -74,7 +74,7 @@ export default function TrainPage() {
       const res = await api.post('/pipeline/eda', { session_id: sessionId });
       const cols = Object.keys(res.data.correlation_matrix || {});
       setAvailableCols(cols);
-      setTarget(cols[0] || '');
+      setTarget(cols[-1] || '');
     };
     if (sessionId) fetchCols();
   }, [sessionId]);
@@ -146,10 +146,16 @@ export default function TrainPage() {
             ) : (
               <input
                 type={typeof val === 'number' ? 'number' : 'text'}
-                value={params[key]}
-                onChange={(e) =>
-                  updateParam(key, typeof val === 'number' ? Number(e.target.value) : e.target.value)
-                }
+                value={params[key] ?? ''} // Use an empty string if the value is null or undefined
+                onChange={(e) => {
+                  const value = e.target.value;
+                  updateParam(
+                    key,
+                    typeof val === 'number'
+                      ? value === '' ? null : Number(value) // Set to null if the input is empty
+                      : value || null // Set to null if the input is empty
+                  );
+                }}
                 className="border p-2 w-full"
               />
             )}
