@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from app.routes.upload import session_store
 import pandas as pd
 import numpy as np
@@ -17,13 +17,14 @@ router = APIRouter()
 # Request schema for cleaning
 class CleaningRequest(BaseModel):
     session_id: str
+    target_column: str
     fill_strategies: Dict[str, str]  
 
 @router.post("/clean")
 async def clean_data(payload: CleaningRequest):
     session_id = payload.session_id
     fill_map = payload.fill_strategies
-    target_col = payload.fill_strategies.get("target_column", None)
+    target_col = payload.target_column
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
 
@@ -74,7 +75,11 @@ class EDARequest(BaseModel):
 @router.post("/eda")
 async def perform_eda(payload: EDARequest):
     session_id = payload.session_id
-    target_col = payload.target_column
+    if session_id not in session_store:
+        raise HTTPException(status_code=404, detail="Invalid session ID.")
+    target_col = session_store[session_id]["meta"].get("target_column", None)
+    if target_col is None:
+        target_col = payload.target_column
 
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
@@ -303,14 +308,25 @@ async def explain_model(payload: ExplainRequest):
 class SessionRequest(BaseModel):
     session_id: str
 
+
 @router.post("/data")
 def get_data(payload: SessionRequest):
-    print("Get Data Payload:", payload)
     session_id = payload.session_id
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
-    print("Session Store:", session_store[session_id])
+
+    entry = session_store[session_id]
+    df: pd.DataFrame = entry["data"]
+    meta: Dict[str, Any] = entry["meta"]
+
+    # turn the DataFrame into a list of plain dicts
+    data_records = df.to_dict(orient="records")
+
     return {
         "session_id": session_id,
-        "session_data": jsonable_encoder(sanitize_numpy(session_store[session_id])),
+        "session_data": {
+            "data": data_records,
+            "meta": meta
+        }
     }
+    
