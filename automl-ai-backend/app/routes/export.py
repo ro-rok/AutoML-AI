@@ -1,32 +1,40 @@
+import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Dict, List
 from app.utils.export_utils import generate_pdf, generate_ipynb
+from .upload import session_store
+from fastapi import BackgroundTasks
+
 
 router = APIRouter()
 
-class ExportPDFRequest(BaseModel):
+
+class ExportRequest(BaseModel):
     session_id: str
-    metadata: Dict
-    metrics: Dict
-    tips: List[str]
+
 
 @router.post("/pdf")
-async def export_pdf(payload: ExportPDFRequest):
+async def export_pdf(payload: ExportRequest, background_tasks: BackgroundTasks):
     try:
-        path = generate_pdf(payload.session_id, payload)
-        return FileResponse(path, filename=path, media_type="application/pdf")
+        if payload.session_id not in session_store:
+            raise HTTPException(status_code=404, detail="Session not found.")
+        session_data = session_store[payload.session_id]
+        path = generate_pdf(payload.session_id, session_data)
+        background_tasks.add_task(os.remove, path)
+        return FileResponse(path, filename=os.path.basename(path), media_type="application/pdf", background=background_tasks)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {e}")
 
-class ExportIPYNBRequest(BaseModel):
-    code_steps: List[str]
 
 @router.post("/ipynb")
-async def export_ipynb(payload: ExportIPYNBRequest):
+async def export_ipynb(payload: ExportRequest):
     try:
-        path = generate_ipynb(payload.code_steps)
-        return FileResponse(path, filename=path, media_type="application/json")
+        if payload.session_id not in session_store:
+            raise HTTPException(status_code=404, detail="Session not found.")
+        session_data = session_store[payload.session_id]
+        path = generate_ipynb(payload.session_id, session_data)
+        BackgroundTasks.add_task(os.remove, path)
+        return FileResponse(path, filename=os.path.basename(path), media_type="application/json")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Notebook generation failed: {e}")
