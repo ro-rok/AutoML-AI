@@ -8,6 +8,8 @@ from app.utils.preprocessing import apply_encoding, apply_scaling, apply_balanci
 from app.utils.models import MODEL_MAP, train_and_evaluate
 from app.utils.supabase_client import save_job_record
 from app.utils.explainability import get_shap_values
+from app.utils.sanitize_np import sanitize_numpy
+from fastapi.encoders import jsonable_encoder
 
 
 router = APIRouter()
@@ -15,18 +17,19 @@ router = APIRouter()
 # Request schema for cleaning
 class CleaningRequest(BaseModel):
     session_id: str
-    fill_strategies: Dict[str, str]  # Column name to fill and strategy (mean, median, mode, drop)
+    fill_strategies: Dict[str, str]  
 
 @router.post("/clean")
 async def clean_data(payload: CleaningRequest):
     session_id = payload.session_id
     fill_map = payload.fill_strategies
-
+    target_col = payload.fill_strategies.get("target_column", None)
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
 
     df = session_store[session_id]["data"].copy()
-
+    if target_col and target_col in df.columns:
+        session_store[session_id]["meta"]["target_column"] = target_col
     try:
         # Apply fill strategy per column
         for col, strategy in fill_map.items():
@@ -43,8 +46,10 @@ async def clean_data(payload: CleaningRequest):
 
         # Update the session with cleaned data and meta
         session_store[session_id]["data"] = df
-        session_store[session_id]["meta"]["steps"]["clean"] = fill_map
-
+        if session_store[session_id]["meta"]["steps"].get("clean") is None:
+            session_store[session_id]["meta"]["steps"]["clean"] = [fill_map]
+        else:
+            session_store[session_id]["meta"]["steps"]["clean"].append(fill_map)
         # Return summary
         null_summary = {
             col: int(df[col].isnull().sum())
@@ -121,8 +126,8 @@ class TransformRequest(BaseModel):
     balancing: Optional[str] = None
     balancing_columns: Optional[List[str]] = []
     drop_columns: Optional[List[str]] = []
-    skew_fix_strategy: Optional[str] = None
-    skew_fix_columns: Optional[List[str]] = []
+    skewness: Optional[str] = None
+    skewness_columns: Optional[List[str]] = []
 
 @router.post("/transform")
 async def transform_data(payload: TransformRequest):
@@ -131,8 +136,9 @@ async def transform_data(payload: TransformRequest):
         raise HTTPException(status_code=404, detail="Invalid session ID.")
 
     df = session_store[session_id]["data"].copy()
-    target = payload.target_column
-
+    target = session_store[session_id]["meta"].get("target_column", None)
+    if target is None:
+        target = payload.target_column
     try:
         # Drop any columns user marked for exclusion
         df.drop(columns=payload.drop_columns + [target], errors='ignore', inplace=True)
@@ -145,8 +151,8 @@ async def transform_data(payload: TransformRequest):
             X = apply_encoding(X, payload.encoding, payload.encoding_columns)
 
         # Apply skewness fix
-        if payload.skew_fix_strategy and payload.skew_fix_strategy != "none":
-            X = apply_skewness_fix(X, payload.skew_fix_strategy, payload.skew_fix_columns)
+        if payload.skewness and payload.skewness != "none":
+            X = apply_skewness_fix(X, payload.skewness, payload.skewness_columns)
 
         # Apply scaling only on user-selected numeric columns
         if payload.scaling and payload.scaling != "none":
@@ -158,13 +164,15 @@ async def transform_data(payload: TransformRequest):
 
         df_transformed = pd.concat([X, y], axis=1)
         session_store[session_id]["data"] = df_transformed
-        session_store[session_id]["meta"]["steps"]["transform"] = {
+        if session_store[session_id]["meta"]["steps"].get("transform") is None:
+            session_store[session_id]["meta"]["steps"]["transform"] = []
+        session_store[session_id]["meta"]["steps"]["transform"].append({
             "encoding": {payload.encoding: payload.encoding_columns} if payload.encoding else {},
             "scaling": {payload.scaling: payload.scaling_columns} if payload.scaling else {},
             "balancing": {payload.balancing: payload.balancing_columns} if payload.balancing else {},
-            "skew_fix": {payload.skew_fix_strategy: payload.skew_fix_columns} if payload.skew_fix_strategy else {},
+            "skew_fix": {payload.skewness: payload.skewness_columns} if payload.skewness else {},
             "dropped_columns": payload.drop_columns
-        }
+        })
 
         return {
             "session_id": session_id,
@@ -191,7 +199,9 @@ async def train_model(payload: TrainRequest):
     session_id = payload.session_id
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
-
+    target_column = session_store[session_id]["meta"].get("target_column", None)
+    if target_column is None:
+        target_column = payload.target_column
     df = session_store[session_id]["data"]
     meta = session_store[session_id]["meta"]
     y = df[payload.target_column]
@@ -222,15 +232,25 @@ async def train_model(payload: TrainRequest):
         except Exception as e:
             print("Error saving job record:", e)
 
-        return {
+        if session_store[session_id]["meta"]["steps"].get("train") is None:
+            session_store[session_id]["meta"]["steps"]["train"] = []
+
+        session_store[session_id]["meta"]["steps"]["train"].append({
+            "model": model_name,
+            "params": params_used,
+            "metrics": scores,
+            "confusion_matrix": cm.tolist() if cm is not None else None,
+        })
+
+        return jsonable_encoder({
             "session_id": session_id,
             "model": model_name,
             "params_used": params_used,
-            "evaluation": scores,
-            "rows": len(df),
-            "features": X.shape[1],
-            "confusion_matrix": cm if cm is not None else None
-        }
+            "evaluation": sanitize_numpy(scores),
+            "rows": int(len(df)),
+            "features": int(X.shape[1]),
+            "confusion_matrix": sanitize_numpy(cm) if cm is not None else None
+        })
 
     except Exception as e:
         print("Train Error:", e)
@@ -248,6 +268,9 @@ async def explain_model(payload: ExplainRequest):
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
     
+    target_column = session_store[session_id]["meta"].get("target_column", None)
+    if target_column is None:
+        target_column = payload.target_column
     df = session_store[session_id]
     y = df[payload.target_column]
     X = df.drop(columns=[payload.target_column])
@@ -259,6 +282,15 @@ async def explain_model(payload: ExplainRequest):
 
         shap_values = get_shap_values(model, X, model_type="tree" if "tree" in payload.model_key else "default")
 
+        if shap_values is None:
+            raise HTTPException(status_code=500, detail="SHAP values could not be computed.")
+        
+        session_store[session_id]["meta"]["steps"]["explain"].append({  
+            "model": model_name,
+            "params": params_used,
+            "shap_values": shap_values.tolist() if isinstance(shap_values, np.ndarray) else shap_values
+        })
+
         return {
             "session_id": session_id,
             "shap_importance": shap_values
@@ -267,3 +299,18 @@ async def explain_model(payload: ExplainRequest):
     except Exception as e:
         print("Explain Error:", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+class SessionRequest(BaseModel):
+    session_id: str
+
+@router.post("/data")
+def get_data(payload: SessionRequest):
+    print("Get Data Payload:", payload)
+    session_id = payload.session_id
+    if session_id not in session_store:
+        raise HTTPException(status_code=404, detail="Invalid session ID.")
+    print("Session Store:", session_store[session_id])
+    return {
+        "session_id": session_id,
+        "session_data": jsonable_encoder(sanitize_numpy(session_store[session_id])),
+    }
