@@ -9,7 +9,7 @@ seaborn
 xgboost
 lightgbm
 imbalanced-learn
-fpdf2
+reportlab
 nbformat
 aiohttp
 python-dotenv
