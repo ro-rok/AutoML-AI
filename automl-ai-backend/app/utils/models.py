@@ -38,8 +38,8 @@ REGRESSION_MODELS = {
 # Default hyperparameters per model
 DEFAULT_PARAMS = {
     "logistic": {"solver": "liblinear", "max_iter": 100},
-    "random_forest": {"n_estimators": 100, "max_depth": None},
-    "decision_tree": {"max_depth": None},
+    "random_forest": {"n_estimators": 100, "max_depth": 10},
+    "decision_tree": {"max_depth": 5},
     "svm": {"C": 1.0, "kernel": "rbf", "probability": True},
     "knn": {"n_neighbors": 5},
     "xgboost": {"use_label_encoder": False, "eval_metric": "logloss"},
