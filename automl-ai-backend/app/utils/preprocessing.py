@@ -80,6 +80,7 @@ def apply_balancing(X: pd.DataFrame, y: pd.Series, method: str):
 def apply_skewness_fix(df: pd.DataFrame, method: str, columns: list) -> pd.DataFrame:
     df = df.copy()
     print(f"Applying skewness fix using {method} on columns: {columns}")
+    print(f"Before skewness fix, columns: {df[columns].skew()}")
     for col in columns:
         try:
             if method == "log":
@@ -93,5 +94,7 @@ def apply_skewness_fix(df: pd.DataFrame, method: str, columns: list) -> pd.DataF
             print(f"Applied {method} skewness correction to {col}.")
         except Exception as e:
             print(f"Skewness fix failed for {col}: {e}")
+            raise ValueError(f"Unknown skewness correction method: {method}")
     print(f"Applied {method} skewness correction to: {columns}")
+    print(f"After skewness fix, columns: {df[columns].skew()}")
     return df
