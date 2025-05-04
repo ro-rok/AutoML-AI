@@ -4,8 +4,9 @@ import { useSessionStore } from '../store/useSessionStore';
 
 export default function CleanPage() {
   const { sessionId } = useSessionStore();
-  const [schema, setSchema] = useState<any[]>([]);
+  const [schema, setSchema] = useState<string[]>([]);
   const [strategies, setStrategies] = useState<{ [key: string]: string }>({});
+  const [targetColumn, setTargetColumn] = useState('');
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any[]>([]);
 
@@ -14,6 +15,7 @@ export default function CleanPage() {
     const cols = Object.keys(res.data.skewness || {});
     setSchema(cols);
     setStrategies(Object.fromEntries(cols.map((c) => [c, 'mean'])));
+    setTargetColumn(cols[cols.length - 1] || '');
   };
 
   const clean = async () => {
@@ -21,6 +23,7 @@ export default function CleanPage() {
     const res = await api.post('/pipeline/clean', {
       session_id: sessionId,
       fill_strategies: strategies,
+      target_column: targetColumn,
     });
     setPreview(res.data.preview);
     setLoading(false);
@@ -33,7 +36,13 @@ export default function CleanPage() {
       {schema.map((col) => (
         <div key={col} className="mb-2">
           <label className="mr-2 font-semibold">{col}</label>
-          <select value={strategies[col]} onChange={(e) => setStrategies({ ...strategies, [col]: e.target.value })} className="px-2 py-1 border">
+          <select
+            value={strategies[col]}
+            onChange={(e) =>
+              setStrategies({ ...strategies, [col]: e.target.value })
+            }
+            className="px-2 py-1 border"
+          >
             <option value="mean">Mean</option>
             <option value="median">Median</option>
             <option value="mode">Mode</option>
@@ -41,6 +50,20 @@ export default function CleanPage() {
           </select>
         </div>
       ))}
+      <div className="mb-2">
+        <label className="mr-2 font-semibold">Target Column</label>
+        <select
+          value={targetColumn}
+          onChange={(e) => setTargetColumn(e.target.value)}
+          className="px-2 py-1 border"
+        >
+          {schema.map((col) => (
+            <option key={col} value={col}>
+              {col}
+            </option>
+          ))}
+        </select>
+      </div>
       <button onClick={clean} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
         Clean Data
       </button>
