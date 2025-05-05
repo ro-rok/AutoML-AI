@@ -27,12 +27,23 @@ ALL_PARAMS = {
 def build_prompt(page: str, data: pd.DataFrame, steps: Dict, target_column: str, question: str) -> List[Dict]:
     try:
         page_names = {
-        "eda":       "Exploratory Data Analysis",
-        "clean":     "Data Cleaning",
-        "transform": "Data Transformation",
-        "train":     "Model Training"
+            "eda":       "Exploratory Data Analysis",
+            "clean":     "Data Cleaning",
+            "transform": "Data Transformation",
+            "train":     "Model Training"
         }
         pg = page_names.get(page, page)
+
+        # Safe fallback for target column
+        if not target_column or target_column not in data.columns:
+            target_column = data.columns[-1] if len(data.columns) else 'unknown'
+        target_col_data = data.get(target_column)
+
+        # Safe class count
+        try:
+            class_counts = target_col_data.value_counts(dropna=True).to_dict() if target_col_data is not None else {}
+        except Exception:
+            class_counts = {}
 
         data_summary = {
             "head": data.head().to_dict(),
@@ -41,75 +52,75 @@ def build_prompt(page: str, data: pd.DataFrame, steps: Dict, target_column: str,
             "dtypes": data.dtypes.astype(str).to_dict(),
             "missing_values": data.isnull().sum().to_dict(),
             "memory_usage": data.memory_usage(deep=True).to_dict(),
-            "unique_values": {col: data[col].nunique() for col in data.columns},
+            "unique_values": {col: data[col].nunique(dropna=True) for col in data.columns},
             "shape": {"rows": data.shape[0], "columns": data.shape[1]},
             "sample": data.sample(min(5, len(data))).to_dict(),
-            "correlation": data.select_dtypes(include=[np.number]).corr().to_dict(),
-            "skewness": data.select_dtypes(include=[np.number]).skew().to_dict(),
-            "class_counts": data[target_column].value_counts().to_dict(),
+            "correlation": data.select_dtypes(include=[np.number]).corr().fillna(0).to_dict(),
+            "skewness": data.select_dtypes(include=[np.number]).skew().fillna(0).to_dict(),
+            "class_counts": class_counts,
             "numeric_cols": data.select_dtypes(include=[np.number]).columns.tolist(),
             "cat_cols": data.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
         }
 
         system_msg = {
-        "role":"system",
-        "content":(
-            f"You are an ML-pipeline assistant. The user is currently on the **{pg}** page.\n\n"
-            f"**Dataset:** {data_summary['shape']['rows']} rows × {data_summary['shape']['columns']} columns;   target = '{target_column}' with distribution { data_summary['class_counts']}\n\n"
-            f"**Data preview:**\n"
-            f" • head: {data_summary['head']}\n"
-            f" • tail: {data_summary['tail']}\n"
-            f" • describe: {data_summary['describe']}\n"
-            f" • dtypes: {data_summary['dtypes']}\n"
-            f" • missing values: {data_summary['missing_values']}\n"
-            f" • memory usage: {data_summary['memory_usage']}\n"
-            f" • unique values: {data_summary['unique_values']}\n"
-            f" • sample: {data_summary['sample']}\n\n"
-            f"**Data types:**\n"
-            f" • numeric: {data_summary['numeric_cols']}\n"
-            f" • categorical: {data_summary['cat_cols']}\n\n"
-            f"**Data distribution:**\n"
-            f" • class counts: {data_summary['class_counts']}\n"
-            f" • correlation: {data_summary['correlation']}\n"
-            f" • skewness: {data_summary['skewness']}\n\n"
-            f"**Cleaning steps:**\n"
-            f" Filling Null with only mean , median or mode"
-            f"**Shipped preprocessing ops:**\n"
-            f" • encoding: {ENCODING_OPS}\n"
-            f" • scaling:  {SCALING_OPS}\n"
-            f" • skew-fix: {SKEW_OPS}\n"
-            f" • balancing: {BALANCE_OPS}\n\n"
-            "**Hyperparameter knobs per model:**\n"
-            + "\n".join(f"  • {m}: {ALL_PARAMS[m]}" for m in ALL_PARAMS)
-            + "\n\n"
-            "When giving advice, only pick from the above options. "
-            "If you don't know, say you don't know.\n\n"
-            "If general questions are asked, answer them in the context of the current page.\n\n"
-            "If on the Training page, compare all runs and tell which performed best (by AUC) and why."
-            "If on the Transform page, suggest the best encoding/scaling/skew-fix/balancing method and/or dropping columns for the data.\n\n"
-            "If on the eda page, what are the most important features to look at and why?\n\n"
-            "If on the clean page, for what column to fill its null value what to choose mean, median or mode\n"
-            "If on the train page, what is the best model to use and why and what given hyperparameter to choose from and why?\n\n"
-
-        )
+            "role": "system",
+            "content": (
+                f"You are an ML-pipeline assistant. The user is currently on the **{pg}** page.\n\n"
+                f"**Dataset:** {data_summary['shape']['rows']} rows × {data_summary['shape']['columns']} columns; "
+                f"target = '{target_column}' with distribution {data_summary['class_counts']}\n\n"
+                f"**Data preview:**\n"
+                f" • head: {data_summary['head']}\n"
+                f" • tail: {data_summary['tail']}\n"
+                f" • describe: {data_summary['describe']}\n"
+                f" • dtypes: {data_summary['dtypes']}\n"
+                f" • missing values: {data_summary['missing_values']}\n"
+                f" • memory usage: {data_summary['memory_usage']}\n"
+                f" • unique values: {data_summary['unique_values']}\n"
+                f" • sample: {data_summary['sample']}\n\n"
+                f"**Data types:**\n"
+                f" • numeric: {data_summary['numeric_cols']}\n"
+                f" • categorical: {data_summary['cat_cols']}\n\n"
+                f"**Data distribution:**\n"
+                f" • class counts: {data_summary['class_counts']}\n"
+                f" • correlation: {data_summary['correlation']}\n"
+                f" • skewness: {data_summary['skewness']}\n\n"
+                f"**Cleaning steps:**\n"
+                f" Filling Null with only mean, median, or mode.\n\n"
+                f"**Shipped preprocessing ops:**\n"
+                f" • encoding: {ENCODING_OPS}\n"
+                f" • scaling:  {SCALING_OPS}\n"
+                f" • skew-fix: {SKEW_OPS}\n"
+                f" • balancing: {BALANCE_OPS}\n\n"
+                "**Hyperparameter knobs per model:**\n"
+                + "\n".join(f"  • {m}: {ALL_PARAMS[m]}" for m in ALL_PARAMS)
+                + "\n\n"
+                "When giving advice, only pick from the above options. "
+                "If you don't know, say you don't know.\n\n"
+                "If general questions are asked, answer them in the context of the current page.\n\n"
+                "If on the Training page, compare all runs and tell which performed best (by AUC) and why.\n"
+                "If on the Transform page, suggest the best encoding/scaling/skew-fix/balancing method and/or dropping columns for the data.\n"
+                "If on the eda page, what are the most important features to look at and why?\n"
+                "If on the clean page, for what column to fill its null value what to choose mean, median or mode.\n"
+                "If on the train page, what is the best model to use and why and what given hyperparameter to choose from and why?\n"
+            )
         }
 
-        # user question
         user_msg = {
-        "role":"user",
-        "content":(
-            f"Question: *{page}*> {question}*\n\n"
-            f"Please provide a concise, actionable recommendation.\n\n"        
-            "Here is the full **pipeline history** so far:\n"
-            + json.dumps(steps, indent=2)
-            + "\n\nPlease reply with concise, actionable recommendations."
-        )
+            "role": "user",
+            "content": (
+                f"Question: *{page}*> {question}*\n\n"
+                f"Please provide a concise, actionable recommendation.\n\n"
+                "Here is the full **pipeline history** so far:\n"
+                + json.dumps(steps, indent=2)
+                + "\n\nPlease reply with concise, actionable recommendations."
+            )
         }
 
         return [system_msg, user_msg]
     except Exception as e:
-        print(f"Error in build_prompt: {e}")
-        raise ValueError("Error in build_prompt" + str(e))
+        print(f"❌ Error in build_prompt: {e}")
+        raise ValueError("Error in build_prompt: " + str(e))
+
 
 async def stream_groq_response(api_key: str, messages: List[Dict]) -> AsyncGenerator[str, None]:
     try:
