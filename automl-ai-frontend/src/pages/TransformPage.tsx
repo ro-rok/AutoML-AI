@@ -80,7 +80,7 @@ export default function TransformPage() {
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 mb-10">
       <h2 className="text-2xl font-bold">Transform Dataset</h2>
 
       <div>

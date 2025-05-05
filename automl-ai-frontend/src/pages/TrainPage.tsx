@@ -106,7 +106,7 @@ export default function TrainPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 mb-10">
       <h2 className="text-2xl font-bold">Model Training</h2>
 
       <label className="block font-semibold">Target Column</label>

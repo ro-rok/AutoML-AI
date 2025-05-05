@@ -32,7 +32,7 @@ export default function CleanPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 mb-11">
       <h2 className="text-xl font-bold mb-4">Clean Missing Values</h2>
       <button onClick={fetchSchema} className="mb-4 px-3 py-1 bg-gray-800 text-white rounded">Load Columns</button>
       {schema.map((col) => (

@@ -17,7 +17,7 @@ export default function EDAPage() {
   }, [sessionId]);
 
   return (
-    <div className="p-6">
+    <div className="p-6 mb-11">
       <h2 className="text-xl font-bold mb-4">Exploratory Data Analysis</h2>
       {loading && <p>Loading...</p>}
       {!loading && edaResult && (
