@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useClickAway } from 'react-use'
 import { useSessionStore } from '../store/useSessionStore'
 import gsap from 'gsap'
+import { useStepStore } from '../store/useStepStore'
 
 interface Message { role: 'user' | 'assistant'; content: string | StructuredChunk[];}
 
@@ -68,6 +69,9 @@ interface StructuredChunk {
     gsap.from(target, { opacity: 0, duration: 0.5 });
   }
 
+  const currentStep = useStepStore(state => state.currentStep)
+  const page = ['upload', 'clean', 'eda', 'transform', 'train', 'export'][currentStep]
+
   const send = async () => {
     if (!draft.trim() || streaming) return
     const question = draft.trim()
@@ -76,7 +80,7 @@ interface StructuredChunk {
     setStreaming(true)
 
     try {
-      const page = window.location.pathname.split('/')[1]
+      console.log('stepKey', page)
       const resp = await fetch('http://localhost:8000/groq/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
