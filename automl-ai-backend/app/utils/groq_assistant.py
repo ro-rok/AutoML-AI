@@ -18,7 +18,7 @@ ALL_PARAMS = {
   "knn":           {"n_neighbors":5,"weights":["uniform","distance"],"algorithm":["auto","ball_tree","kd_tree","brute"]},
   "svm":           {"C":1.0,"kernel":["linear","poly","rbf","sigmoid"],"probability":[True,False],"decision_function_shape":["ovo","ovr"]},
   "xgboost":       {"booster":["gbtree","gblinear","dart"],"learning_rate":0.1,"max_depth":6,"n_estimators":100,"eval_metric":"logloss"},
-#   "lightgbm":      {"boosting_type":["gbdt","dart"],"learning_rate":0.05,"num_leaves":31,"max_depth":7,"n_estimators":100},
+  "lightgbm":      {"boosting_type":["gbdt","dart"],"learning_rate":0.05,"num_leaves":31,"max_depth":7,"n_estimators":100},
   "naive_bayes":   {"var_smoothing":1e-9},
   "linear":        {"fit_intercept":[True,False],"normalize":[True,False]}
 }

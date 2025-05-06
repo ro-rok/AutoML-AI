@@ -7,6 +7,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
@@ -23,11 +24,12 @@ MODEL_MAP = {
     "svm": SVC,
     "knn": KNeighborsClassifier,
     "xgboost": XGBClassifier,
+    "lightgbm": LGBMClassifier,
 }
 
 CLASSIFICATION_MODELS = {
     "logistic", "random_forest", "decision_tree",
-    "knn", "svm", "naive_bayes", "xgboost",
+    "knn", "svm", "naive_bayes", "xgboost", "lightgbm"
 }
 
 REGRESSION_MODELS = {
@@ -42,7 +44,7 @@ DEFAULT_PARAMS = {
     "svm": {"C": 1.0, "kernel": "rbf", "probability": True},
     "knn": {"n_neighbors": 5},
     "xgboost": {"use_label_encoder": False, "eval_metric": "logloss"},
-    # "lightgbm": { "num_leaves":31,"max_depth":7,"learning_rate":0.05,"feature_fraction":0.8},
+    "lightgbm": { "num_leaves":31,"max_depth":7,"learning_rate":0.05,"feature_fraction":0.8},
     "naive_bayes": {},
     "linear": {}
 }
