@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]==0.34.2
 python-multipart
 pandas
 numpy
@@ -13,3 +13,4 @@ python-dotenv
 requests
 supabase
 seaborn
+click>=8.0
