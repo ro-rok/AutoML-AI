@@ -1,40 +1,24 @@
-name: Build & Deploy Backend to Heroku
+# Use a slim Python base image
+FROM python:3.11-slim
 
-on:
-  push:
-    branches: [ main ]
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y build-essential gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+# Set working directory
+WORKDIR /app
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+# Copy and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-      - name: Log in to Heroku Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: registry.heroku.com
-          username: _                    # literal underscore
-          password: ${{ secrets.HEROKU_API_KEY }}
+# Copy application code
+COPY . .
 
-      - name: Build & push Docker image
-        run: |
-          cd automl-ai-backend
-          docker build -t registry.heroku.com/${{ secrets.HEROKU_APP_NAME_BACKEND }}/web .
-          docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME_BACKEND }}/web
+# Expose port for Heroku
+ENV PORT=8000
+EXPOSE 8000
 
-      - name: Release to Heroku
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME_BACKEND }}
-        run: |
-          # Use the Heroku Platform API to trigger the container release
-          curl -n -X PATCH https://api.heroku.com/apps/$HEROKU_APP_NAME/formation \
-            -d '[{"type":"web","docker_image":"registry.heroku.com/'"$HEROKU_APP_NAME"'/web"}]' \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/vnd.heroku+json; version=3.docker-releases" \
-            -H "Authorization: Bearer $HEROKU_API_KEY"
+# Start the FastAPI server
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
