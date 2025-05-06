@@ -27,7 +27,7 @@ jobs:
           docker build --pull --progress=plain -t registry.heroku.com/${{ secrets.HEROKU_APP_NAME_BACKEND }}/web .
           docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME_BACKEND }}/web
 
-            - name: Release to Heroku
+      - name: Release to Heroku
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME_BACKEND }}
