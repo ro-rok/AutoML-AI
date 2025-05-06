@@ -82,7 +82,7 @@ export default function ChatAssistant() {
 
     try {
       console.log('stepKey', page)
-      const resp = await fetch(`${BASE_URL}/groq/suggest`, {
+      const resp = await fetch(`${BASE_URL}groq/suggest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId, question, page })
