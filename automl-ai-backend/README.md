@@ -14,10 +14,10 @@
 - 📈 Evaluation: Accuracy, Precision, Recall, F1, AUC
 - 📄 Export: PDF Report & IPYNB Notebook
 - 💡 Groq AI Assistant: Insightful suggestions at each step
-- 🔍 SHAP-based model explainability and feature importance
+<!-- - 🔍 SHAP-based model explainability and feature importance -->
 - 🧠 UUID-based anonymous usage (no login required)
-- 🔐 Optional login via Supabase Auth
-- 🧾 Logged-in users get full session history and resume support
+<!-- - 🔐 Optional login via Supabase Auth
+- 🧾 Logged-in users get full session history and resume support -->
 
 ---
 
@@ -87,12 +87,11 @@ uvicorn app.main:app --reload
 | `/pipeline/eda`       | Perform EDA                            |
 | `/pipeline/transform` | Encode/scale/balance features          |
 | `/pipeline/train`     | Train model & return metrics           |
-| `/pipeline/explain`   | SHAP feature importance                |
 | `/export/pdf`         | Export as PDF                          |
 | `/export/ipynb`       | Export as notebook                     |
 | `/groq/suggest`       | Assistant suggestion (streaming)       |
-| `/user/history`       | View user’s job history (auth only)    |
-
+<!-- | `/user/history`       | View user’s job history (auth only)    | -->
+<!-- | `/pipeline/explain`   | SHAP feature importance                | -->
 ---
 
 ## 🔄 Visual Pipeline Flow
@@ -137,12 +136,20 @@ Take a closer look at the flow and let it guide you through an efficient, user-f
 
 ---
 
-## 🔍 Explainability
+## 🚀 Future Enhancements
+
+We are continuously evolving AutoML-AI. Upcoming features include:
+- **SHAP Explainer Integration:** Enhance model explainability and provide deeper insights.
+- **User-friendly Login Page:** A seamless sign-in experience for personalized session management.
+
+Stay tuned for more improvements!
+
+<!-- ## 🔍 Explainability
 
 - Supports SHAP-based feature importance on any trained model.
 - Auto-detects model type for TreeExplainer vs default Explainer.
 
----
+--- -->
 
 
 Built with ❤️ by Rohan
