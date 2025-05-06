@@ -6,6 +6,7 @@ import { useSessionStore } from '../store/useSessionStore'
 import gsap from 'gsap'
 import { useStepStore } from '../store/useStepStore'
 import backgroundImage from '../assets/AI-Robot.webp'
+import { BASE_URL } from '../api/client'
 
 interface Message { role: 'user' | 'assistant'; content: string | StructuredChunk[]; }
 
@@ -81,7 +82,7 @@ export default function ChatAssistant() {
 
     try {
       console.log('stepKey', page)
-      const resp = await fetch('http://localhost:8000/groq/suggest', {
+      const resp = await fetch(`${BASE_URL}/groq/suggest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId, question, page })
