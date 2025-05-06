@@ -96,11 +96,12 @@ def build_prompt(page: str, data: pd.DataFrame, steps: Dict, target_column: str,
                 + "\n\n"
                 "When giving advice, only pick from the above options. "
                 "If you don't know, say you don't know.\n\n"
+                "If upload and no steps or dataset, say they are on homepage, say: Let get started with pipline and ask them to upload a dataset.\n\n"
                 "If general questions are asked, answer them in the context of the current page.\n\n"
                 "If on the Training page, compare all runs and tell which performed best (by AUC) and why.\n"
                 "If on the Transform page, suggest the best encoding/scaling/skew-fix/balancing method and/or dropping columns for the data.\n"
                 "If on the eda page, what are the most important features to look at and why?\n"
-                "If on the clean page, for what column to fill its null value what to choose mean, median or mode.\n"
+                "If on the clean page, for what column to fill its null value what to choose mean, median or mode then make graphs to see.\n"
                 "If on the train page, what is the best model to use and why and what given hyperparameter to choose from and why?\n"
             )
         }
@@ -125,7 +126,7 @@ def build_prompt(page: str, data: pd.DataFrame, steps: Dict, target_column: str,
 async def stream_groq_response(api_key: str, messages: List[Dict]) -> AsyncGenerator[str, None]:
     try:
         headers = {"Authorization":f"Bearer {api_key}", "Content-Type":"application/json"}
-        payload = {"model":GROQ_MODEL, "messages":messages, "stream":True, "temperature":0.5}
+        payload = {"model":GROQ_MODEL, "messages":messages, "stream":True, "temperature":0.6}
         async with aiohttp.ClientSession() as sess:
             async with sess.post(GROQ_API_URL, json=payload, headers=headers) as resp:
                 async for chunk in resp.content:

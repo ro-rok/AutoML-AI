@@ -5,71 +5,71 @@ import { useClickAway } from 'react-use'
 import { useSessionStore } from '../store/useSessionStore'
 import gsap from 'gsap'
 import { useStepStore } from '../store/useStepStore'
+import backgroundImage from '../assets/AI-Robot.webp'
 
-interface Message { role: 'user' | 'assistant'; content: string | StructuredChunk[];}
-
+interface Message { role: 'user' | 'assistant'; content: string | StructuredChunk[]; }
 
 interface StructuredChunk {
-    type: 'heading' | 'bullet' | 'paragraph' | 'code';
-    text: string;
-  }
-  
-  function formatResponseChunks(raw: string): StructuredChunk[] {
-    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-    const chunks: StructuredChunk[] = [];
-  
-    for (let line of lines) {
-        if (/^\*\*(.+?)\*\*/.test(line)) {
-            chunks.push({ type: 'heading', text: line.replace(/\*\*/g, '') });
-          } else if (/^[-•*]\s/.test(line)) {
-            chunks.push({ type: 'bullet', text: line.replace(/^[-•*]\s/, '').replace(/\*\*/g, '') });
-          } else if (/^`/.test(line)) {
-            chunks.push({ type: 'code', text: line.replace(/`/g, '') });
-          } else {
-            chunks.push({ type: 'paragraph', text: line.replace(/\*\*/g, '') });
-          }       
+  type: 'heading' | 'bullet' | 'paragraph' | 'code';
+  text: string;
+}
+
+function formatResponseChunks(raw: string): StructuredChunk[] {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const chunks: StructuredChunk[] = [];
+
+  for (let line of lines) {
+    if (/^\*\*(.+?)\*\*/.test(line)) {
+      chunks.push({ type: 'heading', text: line.replace(/\*\*/g, '') });
+    } else if (/^[-•*]\s/.test(line)) {
+      chunks.push({ type: 'bullet', text: line.replace(/^[-•*]\s/, '').replace(/\*\*/g, '') });
+    } else if (/^`/.test(line)) {
+      chunks.push({ type: 'code', text: line.replace(/`/g, '') });
+    } else {
+      chunks.push({ type: 'paragraph', text: line.replace(/\*\*/g, '') });
     }
-  
-    return chunks;
   }
 
-  export default function ChatAssistant() {
-    const { sessionId } = useSessionStore();
-    const [open, setOpen] = useState(false);
-    const [msgs, setMsgs] = useState<Message[]>([]);
-    const [draft, setDraft] = useState('');
-    const [streaming, setStreaming] = useState(false);
-    const panel = useRef<HTMLDivElement>(null);
-    const messageEndRef = useRef<HTMLDivElement>(null);
-    useClickAway(panel, () => setOpen(false));
-  
-    useEffect(() => {
-      setMsgs([{
-        role: 'assistant',
-        content: [
-          { type: 'heading', text: '👋 Hi! I\'m your ML pipeline assistant.' },
-          { type: 'bullet', text: 'I know your EDA, cleaning & transform steps.' },
-          { type: 'bullet', text: 'Ask “How to handle missing values?”' },
-          { type: 'bullet', text: 'Try “Model suggestions?” or “Tuning tips for RandomForest?”' },
-          { type: 'paragraph', text: 'Type below to get started.' }
-        ]
-      }]);
-    }, []);
-  
-    useEffect(() => {
-      if (messageEndRef.current) {
-        gsap.to(messageEndRef.current, {
-          scrollTop: messageEndRef.current.scrollHeight,
-          duration: 0.4
-        });
-      }
-    }, [msgs]);
+  return chunks;
+}
+
+export default function ChatAssistant() {
+  const { sessionId } = useSessionStore();
+  const [open, setOpen] = useState(false);
+  const [msgs, setMsgs] = useState<Message[]>([]);
+  const [draft, setDraft] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const messageEndRef = useRef<HTMLDivElement>(null);
+  const { currentStep } = useStepStore();
+  useClickAway(panel, () => setOpen(false));
+
+  useEffect(() => {
+    setMsgs([{
+      role: 'assistant',
+      content: [
+        { type: 'heading', text: '👋 Hi! I\'m your ML pipeline assistant.' },
+        { type: 'bullet', text: 'I know your EDA, cleaning & transform steps.' },
+        { type: 'bullet', text: 'Ask “How to handle missing values?”' },
+        { type: 'bullet', text: 'Try “Model suggestions?” or “Tuning tips for RandomForest?”' },
+        { type: 'paragraph', text: 'Type below to get started.' }
+      ]
+    }]);
+  }, []);
+
+  useEffect(() => {
+    if (messageEndRef.current) {
+      gsap.to(messageEndRef.current, {
+        scrollTop: messageEndRef.current.scrollHeight,
+        duration: 0.4
+      });
+    }
+  }, [msgs]);
 
   function animateIn(target: string) {
     gsap.from(target, { opacity: 0, duration: 0.5 });
   }
 
-  const currentStep = useStepStore(state => state.currentStep)
   const page = ['upload', 'clean', 'eda', 'transform', 'train', 'export'][currentStep]
 
   const send = async () => {
@@ -124,14 +124,14 @@ interface StructuredChunk {
     return content.map((chunk, i) => {
       switch (chunk.type) {
         case 'heading':
-          return <h3 key={i} className="text-sm font-bold mb-1 text-blue-300">{chunk.text}</h3>;
+          return <h3 key={i} className="text-sm font-bold mb-1 text-red-400">{chunk.text}</h3>;
         case 'bullet':
-          return <li key={i} className="ml-4 list-disc text-gray-200">{chunk.text}</li>;
+          return <li key={i} className="ml-4 list-disc text-red-200">{chunk.text}</li>;
         case 'code':
-          return <pre key={i} className="bg-gray-800 text-sm text-green-300 p-2 rounded mt-1 mb-1 overflow-auto">{chunk.text}</pre>;
+          return <pre key={i} className="bg-black/70 text-sm text-red-300 p-2 rounded mt-1 mb-1 overflow-auto border border-red-800">{chunk.text}</pre>;
         case 'paragraph':
         default:
-          return <p key={i} className="text-gray-300 text-sm mb-1">{chunk.text}</p>;
+          return <p key={i} className="text-gray-200 text-sm mb-1">{chunk.text}</p>;        
       }
     });
   };
@@ -139,7 +139,7 @@ interface StructuredChunk {
   return (
     <>
       <button
-        className="fixed bottom-6 right-6 z-50 bg-gray-800 p-3 rounded-full text-white shadow-lg"
+        className="fixed bottom-6 right-6 z-50 bg-red-900 p-3 rounded-full text-white shadow-lg"
         onClick={() => setOpen(o => !o)}
         aria-label="Chat assistant"
       >
@@ -154,7 +154,12 @@ interface StructuredChunk {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 200, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed bottom-20 right-6 z-40 w-80 sm:w-96 h-[70vh] flex flex-col bg-gray-900 rounded-lg shadow-xl"
+            style={{
+              backgroundImage: `url(${backgroundImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+            className="fixed bottom-20 right-6 z-40 w-80 sm:w-96 h-[70vh] bg-black flex flex-col rounded-lg shadow-xl"
           >
             <div className="flex items-center justify-between bg-gray-800 px-4 py-2">
               <h2 className="text-white font-semibold">Assistant</h2>
@@ -172,10 +177,10 @@ interface StructuredChunk {
                   transition={{ delay: i * 0.05 }}
                   className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[80%] whitespace-pre-wrap px-3 py-2 rounded-lg ${
+                  <div className={`max-w-[80%] whitespace-pre-wrap px-3 py-2 rounded-lg backdrop-blur-sm ${
                     m.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-none'
-                      : 'bg-gray-800 text-gray-100 rounded-bl-none'
+                      ? 'bg-red-700 text-white rounded-br-none'
+                      : 'bg-black/60 text-gray-100 border border-red-900/40 rounded-bl-none'
                   }`}>
                     <div>{renderContent(m.content)}</div>
                   </div>
