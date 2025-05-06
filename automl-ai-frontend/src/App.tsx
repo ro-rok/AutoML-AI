@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { useWindowSize } from "react-use"
 
+import { Analytics } from "@vercel/analytics/react"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
 import HomePage from "./components/HomePage"
@@ -122,6 +123,7 @@ export default function App() {
         <Footer />
         <ChatAssistant />
       </div>
+      <Analytics />
     </BrowserRouter>
   )
 }
