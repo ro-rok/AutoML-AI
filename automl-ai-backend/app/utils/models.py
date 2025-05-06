@@ -12,6 +12,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
+import shap
 
 # Mapping models to constructors
 MODEL_MAP = {
@@ -89,6 +90,11 @@ def train_and_evaluate(model_key, X, y, user_params=None, test_size=0.2, random_
 
     if model_key in CLASSIFICATION_MODELS:
         preds = model.predict(X_test)
+        probs = None
+        if hasattr(model, "predict_proba"):
+            probs = model.predict_proba(X_test)[:, 1]
+        elif hasattr(model, "decision_function"):
+            probs = model.decision_function(X_test)
         scores = {
             "accuracy": round(accuracy_score(y_test, preds), 4),
             "precision": round(precision_score(y_test, preds, zero_division=0), 4),
@@ -98,10 +104,14 @@ def train_and_evaluate(model_key, X, y, user_params=None, test_size=0.2, random_
         }
         cm = confusion_matrix(y_test, preds)
         print(f"Model: {model_key}, accuracy: {accuracy_score(y_test, preds)}, precision: {precision_score(y_test, preds, zero_division=0):.4f}, recall: {recall_score(y_test, preds, zero_division=0):.4f}, f1: {f1_score(y_test, preds, zero_division=0):.4f}, roc_auc: {roc_auc_score(y_test, preds):.4f}")
-        print("Confusion Matrix:")
-        print(cm)
+        
     elif model_key in REGRESSION_MODELS:
         preds = model.predict(X_test)
+        probs = None
+        if hasattr(model, "predict_proba"):
+            probs = model.predict_proba(X_test)[:, 1]
+        elif hasattr(model, "decision_function"):
+            probs = model.decision_function(X_test)
         scores = {
             "rmse": round(np.sqrt(mean_squared_error(y_test, preds)), 4),
             "mae": round(mean_absolute_error(y_test, preds), 4),
@@ -110,4 +120,20 @@ def train_and_evaluate(model_key, X, y, user_params=None, test_size=0.2, random_
     else:
         raise ValueError(f"Model '{model_key}' is not supported.")
 
-    return model.__class__.__name__, params, scores, cm if model_key in CLASSIFICATION_MODELS else None
+    if probs is not None:
+        df_test = X_test.copy()
+        df_test["__y_true"]  = y_test
+        df_test["__y_score"] = probs
+        
+    # try:
+    #     if model_key in ["random_forest", "decision_tree", "xgboost", "lightgbm"]:
+    #         explainer = shap.TreeExplainer(model)
+    #     else:
+    #         explainer = shap.Explainer(model, X_train)
+    #     shap_values = explainer(X_test)
+    #     shap.summary_plot(shap_values, X_test, show=False)
+    #     print("SHAP values computed successfully.")
+    # except Exception as e:
+    #     print(f"Error computing SHAP values: {e}")
+
+    return model.__class__.__name__, params, scores, cm if model_key in CLASSIFICATION_MODELS else None, df_test if df_test is not None else None

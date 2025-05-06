@@ -18,54 +18,71 @@ router = APIRouter()
 class CleaningRequest(BaseModel):
     session_id: str
     target_column: str
-    fill_strategies: Dict[str, str]  
+    fill_strategies: Dict[str, str]
 
 @router.post("/clean")
 async def clean_data(payload: CleaningRequest):
-    session_id = payload.session_id
-    fill_map = payload.fill_strategies
-    target_col = payload.target_column
-    if session_id not in session_store:
-        raise HTTPException(status_code=404, detail="Invalid session ID.")
+    sid = payload.session_id
+    if sid not in session_store:
+        raise HTTPException(404, "Invalid session ID")
 
-    df = session_store[session_id]["data"].copy()
-    if target_col and target_col in df.columns:
-        session_store[session_id]["meta"]["target_column"] = target_col
     try:
-        # Apply fill strategy per column
-        for col, strategy in fill_map.items():
-            if strategy == "mean":
-                df[col] = df[col].fillna(df[col].mean())
-            elif strategy == "median":
-                df[col] = df[col].fillna(df[col].median())
-            elif strategy == "mode":
-                df[col] = df[col].fillna(df[col].mode()[0])
-            elif strategy == "drop":
-                df = df.dropna(subset=[col])
-            else:
-                raise ValueError(f"Unknown strategy '{strategy}' for column '{col}'.")
+        df: pd.DataFrame = session_store[sid]["data"]
+        orig_nulls = df.isnull().sum().to_dict()
+        to_clean = {c: n for c,n in orig_nulls.items() if n > 0}
 
-        # Update the session with cleaned data and meta
-        session_store[session_id]["data"] = df
-        if session_store[session_id]["meta"]["steps"].get("clean") is None:
-            session_store[session_id]["meta"]["steps"]["clean"] = [fill_map]
-        else:
-            session_store[session_id]["meta"]["steps"]["clean"].append(fill_map)
-        # Return summary
-        null_summary = {
-            col: int(df[col].isnull().sum())
-            for col in df.columns
+        # update target
+        if payload.target_column in df.columns:
+            session_store[sid]["meta"]["target_column"] = payload.target_column
+
+        # apply strategies
+        df_clean = df.copy()
+        for col, strat in payload.fill_strategies.items():
+            if strat == "mean":
+                df_clean[col] = df_clean[col].fillna(df_clean[col].mean())
+            elif strat == "median":
+                df_clean[col] = df_clean[col].fillna(df_clean[col].median())
+            elif strat == "mode":
+                df_clean[col] = df_clean[col].fillna(df_clean[col].mode()[0])
+            elif strat == "drop":
+                df_clean = df_clean.dropna(subset=[col])
+            else:
+                raise HTTPException(400, f"Unknown strategy '{strat}'")
+
+        # persist cleaned df
+        session_store[sid]["data"] = df_clean
+        session_store[sid]["meta"]["steps"].setdefault("clean", []).append(payload.fill_strategies)
+
+        # after null summary
+        after_nulls = df_clean.isnull().sum().to_dict()
+
+        # identify column types
+        num_cols = df_clean.select_dtypes(include="number").columns.tolist()
+        cat_cols = df_clean.select_dtypes(include=["object","category","bool"]).columns.tolist()
+
+        # graph types
+        graph_types = {
+        "numeric": ["histogram","boxplot","qq","line","scatter"],
+        "categorical": ["bar","pie"]
         }
 
+        preview = df_clean.head(5).replace({np.nan: None}).to_dict(orient="records")
+
         return {
-            "session_id": session_id,
-            "preview": df.head(5).to_dict(orient="records"),
-            "null_summary": null_summary,
-            "rows": df.shape[0],
-            "columns": df.shape[1]
+        "session_id": sid,
+        "preview": preview,
+        "before_nulls": to_clean,
+        "after_nulls": after_nulls,
+        "numeric_cols": num_cols,
+        "categorical_cols": cat_cols,
+        "graph_types": graph_types,
+        "rows": df_clean.shape[0],
+        "columns": df_clean.shape[1],
+        "target_column": session_store[sid]["meta"]["target_column"]
         }
 
     except Exception as e:
+        print("Cleaning Error:", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class EDARequest(BaseModel):
@@ -123,7 +140,6 @@ async def perform_eda(payload: EDARequest):
 
 class TransformRequest(BaseModel):
     session_id: str
-    target_column: str
     encoding: Optional[str] = None
     encoding_columns: Optional[List[str]] = []
     scaling: Optional[str] = None
@@ -142,8 +158,6 @@ async def transform_data(payload: TransformRequest):
 
     df = session_store[session_id]["data"].copy()
     target = session_store[session_id]["meta"].get("target_column", None)
-    if target is None:
-        target = payload.target_column
     try:
         # Drop any columns user marked for exclusion
         df.drop(columns=payload.drop_columns + [target], errors='ignore', inplace=True)
@@ -192,7 +206,6 @@ async def transform_data(payload: TransformRequest):
 
 class TrainRequest(BaseModel):
     session_id: str
-    target_column: str
     model_key: str
     hyperparameters: Optional[Dict] = {}
     test_size: Optional[float] = 0.2
@@ -204,16 +217,14 @@ async def train_model(payload: TrainRequest):
     session_id = payload.session_id
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
-    target_column = session_store[session_id]["meta"].get("target_column", None)
-    if target_column is None:
-        target_column = payload.target_column
     df = session_store[session_id]["data"]
     meta = session_store[session_id]["meta"]
-    y = df[payload.target_column]
-    X = df.drop(columns=[payload.target_column])
+    target_column = meta.get("target_column", None)
+    y = df[target_column]
+    X = df.drop(columns=[target_column])
 
     try:
-        model_name, params_used, scores, cm = train_and_evaluate(
+        model_name, params_used, scores, cm, df_test = train_and_evaluate(
             model_key=payload.model_key,
             X=X,
             y=y,
@@ -245,7 +256,17 @@ async def train_model(payload: TrainRequest):
             "params": params_used,
             "metrics": scores,
             "confusion_matrix": cm.tolist() if cm is not None else None,
+            "test": df_test
         })
+
+        # if session_store[session_id]["meta"]["steps"].get("explain") is None:
+        #     session_store[session_id]["meta"]["steps"]["explain"] = {}
+        # session_store[session_id]["meta"]["steps"]["explain"] ={
+        #     "model": model_name,
+        #     "params": params_used,
+        #     "shap_values": shap_values,
+        #     "X_test": X_test
+        # } 
 
         return jsonable_encoder({
             "session_id": session_id,
@@ -263,42 +284,21 @@ async def train_model(payload: TrainRequest):
 
 class ExplainRequest(BaseModel):
     session_id: str
-    target_column: str
     model_key: str
-    hyperparameters: Optional[Dict] = {}
 
 @router.post("/explain")
 async def explain_model(payload: ExplainRequest):
     session_id = payload.session_id
     if session_id not in session_store:
         raise HTTPException(status_code=404, detail="Invalid session ID.")
-    
-    target_column = session_store[session_id]["meta"].get("target_column", None)
-    if target_column is None:
-        target_column = payload.target_column
-    df = session_store[session_id]
-    y = df[payload.target_column]
-    X = df.drop(columns=[payload.target_column])
-
     try:
-        model_name, params_used, _ = train_and_evaluate(payload.model_key, X, y, payload.hyperparameters)
-        model = MODEL_MAP[payload.model_key](**params_used)
-        model.fit(X, y)
-
-        shap_values = get_shap_values(model, X, model_type="tree" if "tree" in payload.model_key else "default")
-
+        model_key = payload.model_key
+        shap_values = session_store[session_id]["meta"]["steps"]["explain"].get("shap_values", None)
         if shap_values is None:
-            raise HTTPException(status_code=500, detail="SHAP values could not be computed.")
-        
-        session_store[session_id]["meta"]["steps"]["explain"].append({  
-            "model": model_name,
-            "params": params_used,
-            "shap_values": shap_values.tolist() if isinstance(shap_values, np.ndarray) else shap_values
-        })
-
+            raise HTTPException(status_code=400, detail="SHAP values not available.")
         return {
             "session_id": session_id,
-            "shap_importance": shap_values
+            "shap_importance": shap_values.tolist() if isinstance(shap_values, np.ndarray) else shap_values
         }
 
     except Exception as e:
@@ -330,3 +330,11 @@ def get_data(payload: SessionRequest):
         }
     }
     
+@router.get("/metrics")
+async def get_metrics(session_id: str):
+    if session_id not in session_store:
+        raise HTTPException(status_code=404, detail="Invalid session ID.")
+    train_steps = session_store[session_id]["meta"]["steps"].get("train", [])
+    metrics = { step["model"]: step["metrics"] for step in train_steps }
+    print("Metrics:", metrics)
+    return {"metrics": metrics}
