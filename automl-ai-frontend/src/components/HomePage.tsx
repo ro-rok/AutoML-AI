@@ -29,7 +29,6 @@ const supportedModels = [
   'KNN',
   'SVM',
   'XGBoost',
-  'LightGBM',
   'Naive Bayes',
 ]
 

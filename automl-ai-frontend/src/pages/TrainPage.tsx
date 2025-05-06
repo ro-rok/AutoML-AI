@@ -13,7 +13,6 @@ const MODEL_NAMES: Record<string, string> = {
   knn:            'K-Nearest Neighbors',
   svm:            'Support Vector Machine',
   xgboost:        'XGBoost',
-  lightgbm:       'LightGBM',
   naive_bayes:    'Naive Bayes',
   linear:         'Linear Regression',
 }
@@ -57,13 +56,13 @@ const ALL_PARAMS: Record<string, Record<string, any>> = {
     max_depth:      6,
     n_estimators:   100,
   },
-  lightgbm: {
-    boosting_type: ['gbdt','dart'],
-    learning_rate: 0.05,
-    num_leaves:     31,
-    max_depth:      7,
-    n_estimators:   100,
-  },
+  // lightgbm: {
+  //   boosting_type: ['gbdt','dart'],
+  //   learning_rate: 0.05,
+  //   num_leaves:     31,
+  //   max_depth:      7,
+  //   n_estimators:   100,
+  // },
   naive_bayes: {
     var_smoothing: 1e-9,
   },

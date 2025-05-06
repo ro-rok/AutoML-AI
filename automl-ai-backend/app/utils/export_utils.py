@@ -275,8 +275,6 @@ def generate_ipynb(session_id: str, session_data: dict) -> str:
                     lines.append("from sklearn.naive_bayes import GaussianNB")
                 elif mdl == "XGBClassifier":
                     lines.append("from xgboost import XGBClassifier")
-                elif mdl == "LGBMClassifier":
-                    lines.append("from lightgbm import LGBMClassifier")
                 elif mdl == "LinearRegression":
                     lines.append("from sklearn.linear_model import LinearRegression")
 
