@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, List
 from ..utils.groq_assistant import build_prompt, stream_groq_response
 from .upload import session_store
 import os, json
@@ -38,17 +38,14 @@ async def suggest(req: GroqRequest):
                     req.question,
                 )
 
-        async def gen():
-            buffer = []
-            async for piece in stream_groq_response(api_key, messages):
-                buffer.append(piece)
-                yield piece
-            # save final
-            session_store[req.session_id]["meta"].setdefault("tips", {})[req.page] = "".join(buffer).strip()
-        print("Streaming response...")
+        buffer: List[str] = []
+        async for piece in stream_groq_response(api_key, messages):
+            buffer.append(piece)
 
-        print("Response is being sent...")
-        return StreamingResponse(gen(), media_type="text/event-stream")
+        full_answer = "".join(buffer).strip()
+        
+        session_store[req.session_id]["meta"].setdefault("tips", {}).setdefault(req.page, []).append(full_answer)
+        return {"answer": full_answer}
     except Exception as e:
         print(f"Error in suggest: {e}")
         raise HTTPException(500, "Error in suggest" + str(e))

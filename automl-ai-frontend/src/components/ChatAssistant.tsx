@@ -6,7 +6,7 @@ import { useSessionStore } from '../store/useSessionStore'
 import gsap from 'gsap'
 import { useStepStore } from '../store/useStepStore'
 import backgroundImage from '../assets/AI-Robot.webp'
-import { BASE_URL } from '../api/client'
+import { api } from '../api/client'
 
 interface Message { role: 'user' | 'assistant'; content: string | StructuredChunk[]; }
 
@@ -76,41 +76,36 @@ export default function ChatAssistant() {
   const send = async () => {
     if (!draft.trim() || streaming) return
     const question = draft.trim()
+    // add the user message placeholder
     setMsgs(m => [...m, { role: 'user', content: question }, { role: 'assistant', content: '' }])
     setDraft('')
     setStreaming(true)
-
+  
     try {
       console.log('stepKey', page)
-      const resp = await fetch(`${BASE_URL}groq/suggest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, question, page })
+      // Axios POST to our "dump" endpoint
+      const resp = await api.post(
+        '/groq/suggest',
+        { session_id: sessionId, question, page }
+      )
+
+      console.log('Response:', resp.data)
+      // pull out the text
+      const full = resp.data.answer
+  
+      // convert to structured chunks
+      const chunks = formatResponseChunks(full)
+  
+      // replace the last assistant placeholder with the real content
+      setMsgs(prev => {
+        const copy = [...prev]
+        copy[copy.length - 1] = { role: 'assistant', content: chunks }
+        return copy
       })
-
-      if (!resp.ok || !resp.body) throw new Error('Unable to stream response. Check server.')
-
-      const reader = resp.body.getReader()
-      const decoder = new TextDecoder()
-      let fullText = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (value) {
-          fullText += decoder.decode(value, { stream: true })
-          const formattedChunks = formatResponseChunks(fullText)
-          setMsgs(prev => {
-            const copy = [...prev]
-            copy[copy.length - 1] = { role: 'assistant', content: formattedChunks }
-            return copy
-          })
-        }
-      }
-
+  
       animateIn('.assistant-msg:last-child')
     } catch (err) {
-      console.error('Streaming error:', err)
+      console.error('Error fetching answer', err)
       setMsgs(m => [...m, { role: 'assistant', content: '⚠️ Something went wrong.' }])
     } finally {
       setStreaming(false)
@@ -187,7 +182,7 @@ export default function ChatAssistant() {
                   </div>
                 </motion.div>
               ))}
-              {streaming && <p className="text-gray-400 text-xs">⏳ Generating...</p>}
+              {streaming && <p className="text-gray-400 text-xs">⏳ Thinking...</p>}
             </div>
 
             <div className="bg-gray-800 p-3 flex items-center gap-2">
