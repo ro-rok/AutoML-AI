@@ -6,126 +6,146 @@
 
 ## 🌐 Website
 
-👉 [https://automatedml.ai](#) — _Coming Soon_
+👉 [https://automated-ml-ai.vercel.app/](https://automated-ml-ai.vercel.app/) — Check our website!
+
+# AutomatedML AI
+
+![Logo](/automl-ai-frontend/src/assets/bg1.webp)
+
+**AutomatedML AI** is a single-page React + FastAPI application that guides you through building end-to-end machine-learning pipelines — from data upload, EDA, cleaning & transformation, to model training and export — all with an AI assistant at your side.
 
 ---
 
-## 🖼 Logo Placeholder
+## 🚀 Features
 
-<p align="center">
-  <img src="<!-- YOUR_LOGO_PATH_HERE -->" alt="AutomatedML AI Logo" width="200"/>
-</p>
-
----
-
-## 📊 WakaTime Stats
-
-![WakaTime](<!-- YOUR_WAKATIME_STATS_IMAGE_URL_HERE -->)
-
----
-
-## 📦 Repositories
-
-- [`Frontend`](./automl-ai-frontend) — UI with React, Vite, Tailwind, GSAP, Groq Assistant
-- [`Backend`](./automl-ai-backend) — FastAPI-based backend for ML pipeline automation
+- **Upload** CSV / Excel datasets  
+- **EDA**: Correlation, skewness, distributions & interactive graphs  
+- **Cleaning**: Fill or drop missing values, preview before/after  
+- **Transformation**: Encoding, scaling, skew‑correction, class balancing  
+- **Model Training**: Logistic, Random Forest, XGBoost, LightGBM, SVM, KNN, Naive Bayes, etc. with hyperparameter tuning  
+- **AI Chat Assistant**: Context‑aware suggestions powered by streaming GPT‑style API  
+- **Export**: Download reproducible PDF reports and Jupyter notebooks  
+- **Pipeline Navigator**: Animated Travelator Background & swipeable panels for showing where are we in pipeline  
+- **Continuous Deployment**: Automated GitHub Actions workflows  
+- **Containerization**: Dockerfiles for reproducible builds  
 
 ---
 
-# 🧠 Frontend – AutomatedML AI
+## 🛠️ Tech Stack
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Vercel](https://img.shields.io/badge/deploying%20on-Vercel-black?logo=vercel)
-![Made with Vite](https://img.shields.io/badge/built%20with-Vite-blueviolet?logo=vite)
-![Powered by Groq](https://img.shields.io/badge/AI%20Powered%20By-Groq%20LLaMA-red?logo=openai)
+- **Frontend**  
+  - React (Vite) + TypeScript  
+  - Tailwind CSS  
+  - Framer Motion & GSAP  
+  - Zustand for state management  
+- **Backend**  
+  - FastAPI + Pydantic  
+  - Pandas, NumPy, scikit‑learn, fpdf2, nbformat
+  - Supabase (PostgreSQL + optional Auth)
+  - Matplotlib & Seaborn
+- **Infrastructure & DevOps**  
+  - Docker & multi‑stage builds  
+  - GitHub Actions for CI/CD  
+  - Heroku & Vercel hosting  
+- **APIs & Tools**  
+  - GROQ AI streaming for chat suggestions  
+  - Supabase for optional session persistence  
 
-<p align="center">
-  <img src="./automl-ai-frontend/src/assets/AI-Robot.webp" alt="AutomatedML AI Frontend" width="400"/>
-</p>
+## 📊 WakaTime
 
-### 🎯 Features
+**⏰ Development Time:** At the time of hosting, nearly all features were built in 44+ hours.
 
-- Smart, streaming AI assistant (Groq) for every ML stage
-- Graph Builder: histogram, heatmap, SHAP, ROC, etc.
-- Cleaner: schema preview, null filler, target auto-detection
-- Transform: scaling, encoding, SMOTE, constraints
-- Trainer: model picker, hyperparameter UI, evaluation results
+![WakaTime Stats](/automl-ai-frontend/public/waka.png)
 
-### 🛠 Tech Stack
+---
 
-- React + Vite, Tailwind CSS, Zustand, GSAP
-- Axios + FastAPI for assistant streaming
-- Groq LLaMA backend integration
+## 📥 Installation
 
-### 🚀 Quickstart
+1. **Clone repository**  
+   ```bash
+   git clone https://github.com/ro-rok/automl-ai.git
+   cd automatedml-ai
+   ```
 
-```bash
-git clone https://github.com/your-org/automl-ai-frontend.git
-cd automl-ai-frontend
-npm install
-npm run dev
+2. **Backend**  
+   ```bash
+   cd automl-ai-backend
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   echo "GROQ_API_KEY=your_groq_api_key" > .env
+   echo "SUPA_BASE=your_supabase_kets" > .env
+   uvicorn app.main:app --reload
+   ```
+   Runs FastAPI on http://localhost:8000
+
+3. **Frontend**  
+   ```bash
+   cd ../automl-ai-frontend
+   npm install
+   npm run dev
+   ```
+   Runs Vite dev server on http://localhost:5173
+
+---
+
+## ⚙️ Configuration
+
+- **Backend**: Add `GROQ_API_KEY` to `.env`  
+- **Frontend**: Update `baseURL` in `src/api/client.ts` to point to your backend.
+
+---
+
+## 🚧 Usage
+
+1. Upload your CSV/XLSX file.  
+2. Explore EDA charts and summaries.  
+3. Clean missing values and preview changes.  
+4. Transform data (encoding, scaling, balancing).  
+5. Train models and view evaluation metrics.  
+6. Export PDF reports or Jupyter notebooks.  
+7. Use the Chat Assistant for AI-driven guidance.
+
+---
+
+## 📂 Project Structure
+
 ```
 
-⚠️ Requires backend running at `http://localhost:8000`.
+automl-ai-backend/
+├─ app/
+│  ├─ main.py            # FastAPI app & routers
+│  ├─ routes/            # upload, pipeline, export, graph, groq
+│  ├─ utils/             # graph_utils, models, groq_assistant, preprocessing, export_utils
+│  └─ ...
 
+automl-ai-frontend/
+├─ public/
+│  └─ sample/            # Sample CSV/XLSX
+├─ src/
+│  ├─ assets/            # bg1.webp (logo), waka.png
+│  ├─ components/
+│  │  ├─ PipelineNavigator.tsx
+│  │  ├─ ChatAssistant.tsx
+│  │  ├─ Header.tsx
+│  │  └─ Footer.tsx
+│  ├─ pages/             # UploadPage, EDAPage, CleanPage, TransformPage, TrainPage, ExportPage
+│  ├─ store/             # useSessionStore, useStepStore
+│  ├─ api/               # axios client
+│  ├─ index.css
+│  └─ App.tsx
+
+```
 ---
 
-# 🔧 Backend – AutoML-AI
+## 🤝 Contributing
 
-🎯 AI-assisted backend for supervised ML – FastAPI + Groq.
-
-### 🚀 Features
-
-- Upload + Schema Preview (CSV/XLSX)
-- EDA: correlation, skew, class balance
-- Cleaning: null fill/drop
-- Transformations: encode, scale, SMOTE
-- Train: Logistic, RF, SVM, XGBoost, LGBM, etc.
-- Export: PDF + Notebook
-- Groq Assistant suggestions per step
-
-### 🧱 Tech Stack
-
-- FastAPI, Scikit-learn, SHAP, fpdf2, nbformat
-- Supabase (PostgreSQL + optional Auth)
-- Deployed via Heroku (eco tier)
-
-### ▶️ Run Locally
-
-```bash
-git clone https://github.com/your-org/automl-ai-backend.git
-cd automl-ai-backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-.env example:
-
-```env
-GROQ_API_KEY=your_groq_key_here
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_service_role_key
-SUPABASE_ANON_KEY=your_anon_key
-```
-
-### 📬 Routes Summary
-
-| Endpoint | Description |
-|----------|-------------|
-| `/upload/file` | Upload & preview dataset |
-| `/pipeline/eda` | Run EDA on dataset |
-| `/pipeline/clean` | Fill/drop missing values |
-| `/pipeline/transform` | Encode/scale data |
-| `/pipeline/train` | Train & evaluate model |
-| `/export/pdf` | Generate PDF report |
-| `/export/ipynb` | Download Jupyter notebook |
-| `/groq/suggest` | Get AI-based step suggestion |
+- Fork the repo & create your feature branch  
+- Commit your changes & push  
+- Open a Pull Request  
 
 ---
 
 ## 📄 License
 
-MIT © 2025 Rohan
-
----
+MIT © Rohan Khanna
