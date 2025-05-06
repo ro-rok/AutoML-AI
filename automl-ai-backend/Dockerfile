@@ -1,24 +1,30 @@
-# Use a slim Python base image
-FROM python:3.11-slim
+# 1. Use a small official Python base image
+FROM python:3.11-slim AS builder
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y build-essential gcc libpq-dev && \
-    rm -rf /var/lib/apt/lists/*
+# 2. Install build dependencies
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential gcc libpq-dev \
+ && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy and install Python dependencies
+# 3. Copy and install Python deps into a wheel cache
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip \
+ && pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
 
-# Copy application code
+# 4. Create a clean runtime image
+FROM python:3.11-slim
+WORKDIR /app
+
+# 5. Install only the wheels (no compiler toolchain)
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir --no-deps /wheels/* \
+ && rm -rf /wheels
+
+# 6. Copy your app code
 COPY . .
 
-# Expose port for Heroku
-ENV PORT=8000
+# 7. Expose and set the entrypoint
 EXPOSE 8000
-
-# Start the FastAPI server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
