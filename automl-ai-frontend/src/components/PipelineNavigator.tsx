@@ -1,9 +1,9 @@
 // src/components/PipelineNavigator.tsx
-import React, { useEffect, useState, useRef, useLayoutEffect } from 'react'
-import { useWindowSize }                    from 'react-use'
-import { useSwipeable }                     from 'react-swipeable'
-import { useStepStore }                     from '../store/useStepStore'
-import gsap                                  from 'gsap'
+import React, { useRef, useLayoutEffect } from 'react'
+import { useWindowSize } from 'react-use'
+import { useSwipeable } from 'react-swipeable'
+import { useStepStore } from '../store/useStepStore'
+import gsap from 'gsap'
 import {
   FiUploadCloud,
   FiTrash2,
@@ -60,18 +60,13 @@ function WavyArrow() {
 export default function PipelineNavigator() {
   const { width, height } = useWindowSize()
   const isMobile = width < 768
-  const { currentStep } = useStepStore()
-  const [current, setCurrent] = useState(currentStep)
+  const current = useStepStore((state) => state.currentStep)
+  const setStep = useStepStore((state) => state.setStep)
 
-  // sync local `current` with store
-  useEffect(() => {
-    setCurrent(currentStep)
-  }, [currentStep])
-
-  // DESKTOP: unchanged
+  // DESKTOP: apply pipeline-bg here
   if (!isMobile) {
     return (
-      <div className="w-full h-full flex items-center justify-center overflow-auto bg-black">
+      <div className="w-full h-full flex items-center justify-center overflow-auto pipeline-bg">
         <div className="absolute inset-0 flex flex-row items-center">
           {STEPS.map((step, i) => {
             const dist = Math.abs(i - current)
@@ -80,9 +75,9 @@ export default function PipelineNavigator() {
             return (
               <React.Fragment key={step.key}>
                 <div
-                  onClick={() => setCurrent(i)}
+                  onClick={() => setStep(i)}
                   className={`
-                    flex flex-col bg-black border rounded-lg shadow-lg
+                    flex flex-col bg-black/50 border rounded-lg shadow-lg
                     transition-all duration-500 ease-out cursor-pointer
                     ${i === current ? 'border-red-500' : 'border-gray-700'}
                   `}
@@ -112,11 +107,11 @@ export default function PipelineNavigator() {
     )
   }
 
-  // MOBILE: full‐screen panels + fixed tracker + swipe
+  // MOBILE: unchanged
   const StepComponent = STEPS[current].Component
   const swipeHandlers = useSwipeable({
-    onSwipedLeft:  () => current < STEPS.length - 1 && setCurrent(c => c + 1),
-    onSwipedRight: () => current > 0               && setCurrent(c => c - 1),
+    onSwipedLeft:  () => current < STEPS.length - 1 && setStep(current + 1),
+    onSwipedRight: () => current > 0               && setStep(current - 1),
     trackTouch:   true,
     trackMouse:    false,
   })
@@ -127,26 +122,17 @@ export default function PipelineNavigator() {
       className="relative flex flex-col bg-black text-white w-full h-full"
       style={{ touchAction: 'pan-y' }}
     >
-      {/* panel area */}
       <div className="flex-1 overflow-auto">
         <StepComponent />
       </div>
-
-      {/* fixed tracker right above the global Footer */}
       <div className="fixed bottom-10 left-0 w-full bg-gray-800 p-3 flex justify-between items-center">
-        <button
-          onClick={() => current > 0 && setCurrent(c => c - 1)}
-          className="text-red-500"
-        >
+        <button onClick={() => current > 0 && setStep(current - 1)} className="text-red-500">
           <FiChevronLeft size={24} />
         </button>
         <span className="text-red-500 font-semibold">
           {STEPS[current].label} ({current + 1}/{STEPS.length})
         </span>
-        <button
-          onClick={() => current < STEPS.length - 1 && setCurrent(c => c + 1)}
-          className="text-red-500"
-        >
+        <button onClick={() => current < STEPS.length - 1 && setStep(current + 1)} className="text-red-500">
           <FiChevronRight size={24} />
         </button>
       </div>

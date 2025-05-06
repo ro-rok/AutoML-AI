@@ -14,7 +14,7 @@ html, body, #root {
   }
   
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 2px;
   }
   ::-webkit-scrollbar-track {
     background: #0d1116;
@@ -24,3 +24,34 @@ html, body, #root {
     border-radius: 4px;
     border: 2px solid #1f2937;
   }
+
+
+/* 1. Keyframes for slow conveyor‐belt animation */
+@keyframes pipeline-scroll {
+  from { background-position: 0 0; }
+  to   { background-position: 200px 0; }
+}
+
+/* 2. Pipeline background texture & animation */
+.pipeline-bg {
+  background-color: #000; /* pure black base */
+  background-image:
+    /* two layered stripes to simulate pipe seams */
+    repeating-linear-gradient(
+      90deg,
+      rgba(60,60,60,0.15) 0,
+      rgba(60,60,60,0.15) 2px,
+      transparent 2px,
+      transparent 20px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(100,100,100,0.05) 0,
+      rgba(100,100,100,0.05) 1px,
+      transparent 1px,
+      transparent 10px
+    );
+  background-size: auto 100%; /* stretch vertically */
+  background-repeat: repeat-x;
+  animation: pipeline-scroll 30s linear infinite;
+}
