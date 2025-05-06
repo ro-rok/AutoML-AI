@@ -18,18 +18,26 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: registry.heroku.com
-          username: _                     # literally an underscore
+          username: _
           password: ${{ secrets.HEROKU_API_KEY }}
 
       - name: Build & push Docker image
         run: |
           cd automl-ai-backend
-          docker build --pull --progress=plain -t registry.heroku.com/${{ secrets.HEROKU_APP_NAME_BACKEND }}/web .
+          docker build --pull --progress=plain \
+            -t registry.heroku.com/${{ secrets.HEROKU_APP_NAME_BACKEND }}/web .
           docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME_BACKEND }}/web
 
       - name: Install Heroku CLI
         run: |
           curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Set Heroku stack to container
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME_BACKEND }}
+        run: |
+          heroku stack:set container --app $HEROKU_APP_NAME
 
       - name: Release to Heroku Container
         env:
