@@ -31,6 +31,23 @@
 
 ---
 
+## <img src="https://imgproxy.attic.sh/insecure/f:png/plain/https://attic.sh/zpf1ssxoqcakcppm1x0v6azbzpdy" height="23"> Pipeline Overview
+
+Experience the evolution of your data journey. Our pipeline encompasses:
+
+- **Data Ingestion:** Upload and preview CSV/XLSX files.
+- **Exploratory Analysis:** Uncover insights through interactive visualizations.
+- **Data Cleaning & Transformation:** Handle missing values, encode, scale, and balance your dataset.
+- **Model Training:** Leverage AI-driven suggestions to build robust models.
+- **Report Generation:** Export reproducible PDFs and Jupyter notebooks.
+
+Embrace an end-to-end solution that turns raw data into impactful results.
+
+
+![Pipeline](/automl-ai-backend/src/automl_pipeline_flow.png)
+
+---
+
 ## 🛠️ Tech Stack
 
 - **Frontend**  
