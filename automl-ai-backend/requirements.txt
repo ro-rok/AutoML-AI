@@ -12,3 +12,4 @@ aiohttp
 python-dotenv
 requests
 supabase
+seaborn
