@@ -1,7 +1,7 @@
 // src/pages/ExportPage.tsx
 import { useState, useEffect } from 'react'
 import { Tab , TabList, TabPanel, TabPanels, TabGroup } from '@headlessui/react'
-import { FiDownload, FiFileText, FiBarChart2 } from 'react-icons/fi'
+import { FiDownload } from 'react-icons/fi'
 import { api } from '../api/client'
 import { useSessionStore } from '../store/useSessionStore'
 

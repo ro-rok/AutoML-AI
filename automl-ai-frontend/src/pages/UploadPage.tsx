@@ -134,9 +134,14 @@ export default function UploadPage() {
             <h2 className="text-lg text-gray-300 font-semibold mb-2">Or try a sample dataset:</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
-                ['email_phishing_data.csv', 'Email Phishing'],
-                ['heart.csv', 'Heart Disease'],
-                ['student.csv', 'Student Depression'],
+                ['stroke.csv', 'Brain Stroke Prediction'],
+                ['nba-players.csv', 'NBA Players Longevity Prediction'],
+                ['email_phishing_data.csv', 'Email Phishing Detection'],
+                ['heart.csv', 'Heart Disease Prediction'],
+                ['student.csv', 'Student Depression Prediction'],
+                ['neo_v2.csv', 'Nearest Earth Objects Danger'],
+                ['water_potability.csv', 'Water Potability Prediction'],
+                ['FastagFraudDetection.csv', 'Fastag Fraud Detection'],
                 
               ].map(([filename, label]) => (
                 <button
