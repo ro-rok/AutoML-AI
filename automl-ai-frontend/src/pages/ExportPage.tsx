@@ -62,34 +62,31 @@ export default function ExportPage() {
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      <h2 className="text-3xl font-bold mb-4">Export & Compare</h2>
+      <h2 className="text-2xl font-bold text-red-500 mb-4">Export & Compare</h2>
 
       <TabGroup>
-        <TabList className="flex space-x-2 mb-6">
+        <TabList className="flex space-x-1 bg-gray-800 p-1 rounded mb-4">
           <Tab
             className={({ selected }) =>
-              classNames(
-                'flex items-center px-4 py-2 rounded-lg cursor-pointer',
+              `flex-1 py-2 text-center rounded ${
                 selected
-                  ? 'bg-red-500 text-black'
-                  : 'bg-gray-800 text-gray-300'
-              )
+                  ? 'bg-black text-red-500 font-semibold'
+                  : 'text-gray-400 hover:bg-gray-700'
+              }`
             }
-          >
-            <FiFileText className="mr-2" /> Export
+          > Export
           </Tab>
           <Tab
             onClick={fetchComparison}
             className={({ selected }) =>
-              classNames(
-                'flex items-center px-4 py-2 rounded-lg cursor-pointer',
+              `flex-1 py-2 text-center rounded ${
                 selected
-                  ? 'bg-red-500 text-black'
-                  : 'bg-gray-800 text-gray-300'
-              )
+                  ? 'bg-black text-red-500 font-semibold'
+                  : 'text-gray-400 hover:bg-gray-700'
+              }`
             }
           >
-            <FiBarChart2 className="mr-2" /> Comparison
+            Comparison
           </Tab>
         </TabList>
 

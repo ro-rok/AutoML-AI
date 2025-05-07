@@ -30,6 +30,7 @@ const supportedModels = [
   'SVM',
   'XGBoost',
   'Naive Bayes',
+  'LightGBM',
 ]
 
 export default function HomePage({ onEnter }: Props) {

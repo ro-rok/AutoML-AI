@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Tab ,TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { api } from '../api/client';
 import { useSessionStore } from '../store/useSessionStore';
-import classNames from 'classnames';
 
 type EDAResult = {
   correlation_matrix: Record<string, Record<string, number>>;
@@ -15,9 +14,18 @@ type EDAResult = {
   num_columns: number;
 };
 
-const GRAPH_TYPES: Record<'numeric' | 'categorical', string[]> = {
-  numeric: ['histogram','boxplot','qq','line','scatter'],
-  categorical: ['bar','pie'],
+const GRAPH_TYPES: Record<'numeric' | 'categorical', { value: string; label: string }[]> = {
+  numeric: [
+    { value: 'histogram', label: 'Histogram Graph' },
+    { value: 'boxplot', label: 'Boxplot Graph' },
+    { value: 'scatter', label: 'Scatter Graph' },
+    { value: 'line', label: 'Line Graph' },
+    { value: 'qq', label: 'QQ Plot' },
+  ],
+  categorical: [
+    { value: 'bar', label: 'Bar Graph' },
+    { value: 'pie', label: 'Pie Chart' },
+  ],
 };
 
 export default function EDAPage() {
@@ -121,20 +129,20 @@ export default function EDAPage() {
 
   return (
     <div className="bg-black text-white min-h-screen p-6 overflow-y-auto">
-      <h2 className="text-2xl font-bold mb-4">Exploratory Data Analysis</h2>
+      <h2 className="text-2xl font-bold text-red-500 mb-4">Exploratory Data Analysis</h2>
 
       <TabGroup>
-        <TabList className="flex space-x-4 border-b border-gray-700">
+        
+        <TabList className="flex space-x-1 bg-gray-800 p-1 rounded mb-4">
           {['Stats','Graphs'].map((label) => (
             <Tab
               key={label}
               className={({ selected }) =>
-                classNames(
-                  'py-2 px-4 text-sm font-medium rounded-t-lg',
+                `flex-1 py-2 text-center rounded ${
                   selected
-                    ? 'bg-gray-800 text-red-500'
-                    : 'text-gray-400 hover:text-gray-200'
-                )
+                    ? 'bg-black text-red-500 font-semibold'
+                    : 'text-gray-400 hover:bg-gray-700'
+                }`
               }
             >
               {label}
@@ -146,36 +154,7 @@ export default function EDAPage() {
           {/* ─── STATS ─── */}
           <TabPanel>
             {/* heatmap */}
-            <section>
-              <h3 className="font-semibold mb-2">Correlation Heatmap</h3>
-              {corrLoading ? (
-                <div className="flex items-center justify-center h-[400px]">
-                  <svg className="animate-spin h-8 w-8 text-red-500" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                </div>
-              ) : corrImgUrl ? (
-                <img
-                  src={corrImgUrl}
-                  alt="Correlation Heatmap"
-                  className="w-full max-h-[400px] object-contain rounded-lg shadow-lg bg-gray-900"
-                />
-              ) : (
-                <p className="text-gray-500">Failed to load heatmap.</p>
-              )}
-            </section>
+            
 
             {/* numeric summary */}
             <section>
@@ -242,6 +221,37 @@ export default function EDAPage() {
               </div>
             </section>
 
+            <section>
+              <h3 className="font-semibold mb-2">Correlation Heatmap</h3>
+              {corrLoading ? (
+                <div className="flex items-center justify-center h-[400px]">
+                  <svg className="animate-spin h-8 w-8 text-red-500" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                </div>
+              ) : corrImgUrl ? (
+                <img
+                  src={corrImgUrl}
+                  alt="Correlation Heatmap"
+                  className="w-full max-h-[400px] object-contain rounded-lg shadow-lg bg-gray-900"
+                />
+              ) : (
+                <p className="text-gray-500">Failed to load heatmap.</p>
+              )}
+            </section>
+
             {/* class distribution */}
             <section>
               <h3 className="font-semibold mb-2">Class Distribution</h3>
@@ -299,7 +309,7 @@ export default function EDAPage() {
                   >
                     <option value="">— choose —</option>
                     {GRAPH_TYPES[selCat].map(g=>(
-                      <option key={g} value={g}>{g}</option>
+                      <option key={g.value} value={g.value}>{g.label}</option>
                     ))}
                   </select>
                 </div>

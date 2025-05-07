@@ -130,21 +130,23 @@ export default function TrainPage() {
 
   return (
     <div className="min-h-screen bg-black text-white p-5">
-      <h2 className="text-3xl font-bold mb-6">Train a Model</h2>
+      <h2 className="text-2xl font-bold text-red-500 mb-4">Train a Model</h2>
 
       {/* 1) Model Carousel */}
       <TabGroup
         selectedIndex={modelKeys.indexOf(modelKey)}
         onChange={i => setModelKey(modelKeys[i])}
       >
-        <TabList className="flex space-x-2 overflow-x-auto mb-6 py-2">
+        <TabList className="flex gap-2 bg-gray-800 p-1 rounded mb-4 overflow-x-auto whitespace-nowrap">
           {modelKeys.map(key => (
             <Tab key={key} className={({ selected }) =>
-              `flex-shrink-0 px-4 py-2 rounded-lg cursor-pointer whitespace-nowrap
-               ${selected
-                 ? 'bg-red-500 text-black'
-                 : 'bg-gray-800 text-gray-300'}`
-            }>
+              `flex-1 py-2 px-1.5 text-center rounded ${
+                selected
+                  ? 'bg-black text-red-500 font-semibold'
+                  : 'text-gray-400 hover:bg-gray-700'
+                  }`
+                }
+              >
               {MODEL_NAMES[key]}
             </Tab>
           ))}

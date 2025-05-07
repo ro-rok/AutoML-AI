@@ -95,7 +95,7 @@ export default function UploadPage() {
 
   return (
     <div className="h-full overflow-y-auto px-4 py-6">
-      <h1 className="text-3xl font-bold text-red-500 mb-4">Upload Dataset</h1>
+      <h2 className="text-2xl font-bold text-red-500 mb-4">Upload Dataset</h2>
 
       {/* --- if no preview yet, show uploader */}
       {preview.length === 0 ? (
@@ -157,6 +157,7 @@ export default function UploadPage() {
           </div>
 
           {/* --- tabs */}
+          
           <TabGroup>
             <TabList className="flex space-x-1 bg-gray-800 p-1 rounded mb-4">
               {['Overview', 'Preview', 'Schema'].map((t) => (
