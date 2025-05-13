@@ -1,8 +1,10 @@
 // src/App.tsx
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { BrowserRouter } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { useWindowSize } from "react-use"
+import { toast } from "react-hot-toast"
+import { api } from "./api/client"
 
 import { Analytics } from "@vercel/analytics/react"
 import Header from "./components/Header"
@@ -12,6 +14,97 @@ import PipelineNavigator from "./components/PipelineNavigator"
 import ChatAssistant from "./components/ChatAssistant"
 
 export default function App() {
+
+  const PING_INTERVAL = 25 * 60 * 1000;
+  const PING_TIMEOUT = 15 * 1000;
+  const PING_THRESHOLD = 500; 
+
+  // refs so we can skip re-renders
+  const lastPingTime = useRef(0);
+  const pinging = useRef(false);
+
+  const pingBackend = useCallback(() => {
+  if (pinging.current) return;
+
+  const now = Date.now();
+  if (now - lastPingTime.current < PING_INTERVAL) return;
+
+  pinging.current = true;
+  let toastId: string | undefined;
+  let timeoutId: number | undefined;
+  let thresholdId: number | undefined;
+  let gaveUp = false;
+
+  const showLoading = () => {
+      toastId = toast.loading(
+      <div className="flex items-center gap-2">
+          <span>Waking up backend, please have patience...</span>
+      </div>,
+      { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "260px" } }
+      );
+      // After PING_TIMEOUT, show error and stop retrying
+      timeoutId = setTimeout(() => {
+      gaveUp = true;
+      if (toastId) {
+          toast.dismiss(toastId);
+      }
+      toast.error(
+          <div className="flex items-center gap-2">
+          <span>
+              Backend is taking longer than expected. Thank you for your patience.<br />
+              Please try again later.
+          </span>
+          </div>,
+          { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "260px" } }
+      );
+      pinging.current = false;
+      }, PING_TIMEOUT);
+  };
+
+  const tryPing = () => {
+      if (gaveUp) return;
+      api.get('/ping')
+      .then(() => {
+          clearTimeout(thresholdId);
+          if (timeoutId) clearTimeout(timeoutId);
+          if (toastId) {
+          toast.dismiss(toastId);
+          toast.success(
+              <div className="flex items-center gap-2">
+              <span>Backend is awake!</span>
+              </div>,
+              { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "220px" } }
+          );
+          }
+          lastPingTime.current = Date.now();
+          pinging.current = false;
+      })
+      .catch(() => {
+          if (!gaveUp) {
+          setTimeout(tryPing, 750);
+          }
+      });
+  };
+
+  thresholdId = setTimeout(showLoading, PING_THRESHOLD);
+  tryPing();
+  }, []);
+
+  useEffect(() => {
+  const handler = () => {
+      if (document.visibilityState === 'visible') {
+      pingBackend();
+      }
+  };
+  ['mousemove','mousedown','touchstart','visibilitychange']
+      .forEach(e => window.addEventListener(e, handler));
+  return () => {
+      ['mousemove','mousedown','touchstart','visibilitychange']
+      .forEach(e => window.removeEventListener(e, handler));
+  };
+  }, [pingBackend]);
+
+
   const [showNav, setShowNav] = useState(false)
   const { width } = useWindowSize()
   const isMobile = width < 768

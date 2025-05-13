@@ -16,6 +16,10 @@ app.add_middleware(
 async def root():
     return {"status": "ok", "message": "AutoML-AI Backend is running"}
 
+@app.get("/ping")
+def ping():
+    return {"status": "ok"}
+
 app.include_router(users.router, prefix="/user")
 app.include_router(upload.router, prefix="/upload")
 app.include_router(pipeline.router, prefix="/pipeline")
