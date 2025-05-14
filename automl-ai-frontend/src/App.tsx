@@ -37,12 +37,14 @@ export default function App() {
 
   const showLoading = () => {
       toastId = toast.loading(
-      <div className="flex items-center gap-2">
-          <span>Waking up backend, please have patience </span> 
-          <span className="animate-pulse text-gray-400">...</span>
-          <br />
-          <span className="text-sm text-gray-400">This may take a few seconds.</span>
-      </div>,
+      <div className="flex items-center">
+          <span>
+            Waking up backend   
+            <span className="animate-pulse text-blue-400"> ...</span>
+            <br />
+            <span className="text-sm text-gray-400">This may take a few seconds.</span>
+          </span>
+        </div>,
       { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "260px" } }
       );
       // After PING_TIMEOUT, show error and stop retrying
@@ -53,13 +55,13 @@ export default function App() {
       }
       toast.error(
           <div className="flex items-center gap-2">
-          <span>
-              Backend is taking longer than expected. Thank you for your patience.<br />
-              Please try again later.
-          </span>
+            <span>
+              Backend is taking longer than expected. <br/> Thank you for your patience.<br />
+              <span className="text-sm text-gray-400">Please try again later.</span>
+            </span>
           </div>,
           { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "260px" } }
-      );
+        );
       pinging.current = false;
       }, PING_TIMEOUT);
   };
@@ -74,12 +76,14 @@ export default function App() {
           toast.dismiss(toastId);
           toast.success(
               <div className="flex items-center gap-2">
-                <span>Backend is awake!</span>
-                <br />
-                <span className="text-sm text-gray-400">You can now use the app.</span>  
+                <span>
+                  Backend is awake! 
+                  <br />
+                  <span className="text-sm text-gray-400">You can now use the app. Sorry for the wait.</span>
+                </span>
               </div>,
               { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "220px" } }
-          );
+            );
           }
           lastPingTime.current = Date.now();
           pinging.current = false;
