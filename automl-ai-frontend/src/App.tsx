@@ -38,7 +38,10 @@ export default function App() {
   const showLoading = () => {
       toastId = toast.loading(
       <div className="flex items-center gap-2">
-          <span>Waking up backend, please have patience...</span>
+          <span>Waking up backend, please have patience </span> 
+          <span className="animate-pulse text-gray-400">...</span>
+          <br />
+          <span className="text-sm text-gray-400">This may take a few seconds.</span>
       </div>,
       { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "260px" } }
       );
@@ -71,7 +74,9 @@ export default function App() {
           toast.dismiss(toastId);
           toast.success(
               <div className="flex items-center gap-2">
-              <span>Backend is awake!</span>
+                <span>Backend is awake!</span>
+                <br />
+                <span className="text-sm text-gray-400">You can now use the app.</span>  
               </div>,
               { style: { background: "#18181b", color: "#fff", fontSize: "1rem", minWidth: "220px" } }
           );
