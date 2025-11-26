@@ -12,8 +12,6 @@ reportlab
 nbformat
 aiohttp
 python-dotenv
-sqlalchemy
-psycopg2-binary
 requests
-supabase
 shap
+pymongo[srv]

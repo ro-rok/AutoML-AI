@@ -27,7 +27,7 @@
 - Pandas, Scikit-learn, Imbalanced-learn, SHAP
 - fpdf2, nbformat (for exports)
 - aiohttp (for Groq streaming)
-- Supabase (PostgreSQL + Auth)
+- MongoDB Atlas (job history persistence)
 - Hosted on: Heroku eco-tier
 
 ---
@@ -63,9 +63,9 @@ Create a `.env` file:
 
 ```env
 GROQ_API_KEY=your_groq_key_here
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_service_role_key
-SUPABASE_ANON_KEY=your_anon_key
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net
+MONGODB_DB=automl_ai
+MONGODB_COLLECTION=ml_jobs
 ```
 
 ---
@@ -107,10 +107,11 @@ Take a closer look at the flow and let it guide you through an efficient, user-f
 
 ---
 
-## 📬 Supabase Integration
+## 📬 MongoDB Integration
 
 - Stores session job metadata with pipeline configs, model, and evaluation metrics.
-- Table: `ml_jobs` (with fields: `id`, `filename`, `n_rows`, `pipeline`, `metrics` etc.)
+- Collection: `ml_jobs` (fields: `id`, `user_id`, `filename`, `pipeline`, `model`, `metrics`, timestamps).
+- Configure via `MONGODB_URI`, `MONGODB_DB`, and `MONGODB_COLLECTION` env vars.
 
 
 ---

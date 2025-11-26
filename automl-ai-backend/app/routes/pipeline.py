@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from app.utils.preprocessing import apply_encoding, apply_scaling, apply_balancing, apply_skewness_fix
 from app.utils.models import MODEL_MAP, train_and_evaluate
-from app.utils.supabase_client import save_job_record
+from app.utils.mongodb_client import save_job_record
 from app.utils.explainability import get_shap_values
 from app.utils.sanitize_np import sanitize_numpy
 from fastapi.encoders import jsonable_encoder

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import upload, pipeline, export, groq, users, graph
+from app.routes import upload, pipeline, export, groq, users, graph, aniexplorer
 
 app = FastAPI()
 
@@ -26,3 +26,4 @@ app.include_router(pipeline.router, prefix="/pipeline")
 app.include_router(export.router, prefix="/export")
 app.include_router(groq.router, prefix="/groq")
 app.include_router(graph.router, prefix="/graph")
+app.include_router(aniexplorer.router, prefix="/aniexplorer")
