@@ -16,4 +16,3 @@ requests
 shap
 pymongo[srv]
 httpx
-pickle
