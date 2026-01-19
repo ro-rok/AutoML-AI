@@ -11,7 +11,7 @@ if not MAL_CLIENT_ID:
 
 router = APIRouter()
 
-with open("src/id_weights.pkl", "rb") as f:
+with open("automl-ai-backend/src/id_weights.pkl", "rb") as f:
     id_weights = pickle.load(f)
 anime_ids = list(id_weights.keys())
 
