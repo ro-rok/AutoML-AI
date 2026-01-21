@@ -16,6 +16,9 @@ import Footer from "./components/Footer"
 import ChatAssistant from "./components/ChatAssistant"
 import PipelineSpine from "./components/PipelineSpine"
 import SessionExpirationBanner from "./components/SessionExpirationBanner"
+import { ErrorBoundary } from "./components/ErrorBoundary"
+import { ToastContainer } from "./components/ErrorToast"
+import { useToastStore } from "./store/useToastStore"
 
 // Lazy load pages for code splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -89,6 +92,9 @@ function AnimatedRoutes() {
 export default function App() {
   // Initialize Lenis smooth scrolling
   useLenis();
+
+  // Get toasts from store
+  const { toasts, dismissToast } = useToastStore();
 
   const PING_INTERVAL = 25 * 60 * 1000;
   const PING_TIMEOUT = 15 * 1000;
@@ -189,58 +195,63 @@ export default function App() {
   }, [pingBackend]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <div className="relative flex flex-col bg-bg-base text-text-primary min-h-screen">
-          {/* Fixed header */}
-          <Header onLogoClick={() => {}} />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <div className="relative flex flex-col bg-bg-base text-text-primary min-h-screen">
+            {/* Fixed header */}
+            <Header onLogoClick={() => {}} />
 
-          {/* Session expiration banner */}
-          <SessionExpirationBanner />
+            {/* Session expiration banner */}
+            <SessionExpirationBanner />
 
-          {/* Pipeline Spine */}
-          <PipelineSpine />
+            {/* Pipeline Spine */}
+            <PipelineSpine />
 
-          {/* Main content with animated routes */}
-          <div className="flex-1 pt-16 lg:pl-24">
-            <AnimatedRoutes />
-          </div>
+            {/* Main content with animated routes */}
+            <div className="flex-1 pt-16 lg:pl-24">
+              <AnimatedRoutes />
+            </div>
 
-          {/* Footer */}
-          <Footer />
+            {/* Footer */}
+            <Footer />
 
-          {/* Chat Assistant */}
-          <ChatAssistant />
+            {/* Chat Assistant */}
+            <ChatAssistant />
 
-          {/* Toast notifications */}
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              duration: 5000,
-              style: {
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-default)',
-              },
-              success: {
-                duration: 3000,
-                iconTheme: {
-                  primary: 'var(--color-success)',
-                  secondary: 'var(--text-primary)',
-                },
-              },
-              error: {
+            {/* Custom Toast Container */}
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+            {/* React Hot Toast (for backend ping notifications) */}
+            <Toaster
+              position="top-center"
+              toastOptions={{
                 duration: 5000,
-                iconTheme: {
-                  primary: 'var(--color-error)',
-                  secondary: 'var(--text-primary)',
+                style: {
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-default)',
                 },
-              },
-            }}
-          />
-        </div>
-        <Analytics />
-      </BrowserRouter>
-    </QueryClientProvider>
+                success: {
+                  duration: 3000,
+                  iconTheme: {
+                    primary: 'var(--color-success)',
+                    secondary: 'var(--text-primary)',
+                  },
+                },
+                error: {
+                  duration: 5000,
+                  iconTheme: {
+                    primary: 'var(--color-error)',
+                    secondary: 'var(--text-primary)',
+                  },
+                },
+              }}
+            />
+          </div>
+          <Analytics />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

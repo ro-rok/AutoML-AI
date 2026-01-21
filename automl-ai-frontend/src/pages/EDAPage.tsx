@@ -4,6 +4,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { api } from '../api/client';
 import { useSessionStore } from '../store/useSessionStore';
 import { useScrollReveal } from '../hooks/useScrollReveal';
+import OptimizedImage from '../components/OptimizedImage';
 
 type ColumnStats = {
   mean: number;
@@ -425,10 +426,11 @@ export default function EDAPage() {
                     </svg>
                   </div>
                 ) : corrImgUrl ? (
-                  <img
+                  <OptimizedImage
                     src={corrImgUrl}
                     alt="Correlation Heatmap"
                     className="w-full max-h-[500px] object-contain rounded-lg shadow-lg bg-gray-900"
+                    loading="lazy"
                   />
                 ) : (
                   <p className="text-gray-500 bg-gray-900 rounded-lg p-4">
@@ -564,10 +566,11 @@ export default function EDAPage() {
                 {/* Display generated graph */}
                 {graphUrl && (
                   <div className="mt-4 bg-gray-900 rounded-lg p-4">
-                    <img
+                    <OptimizedImage
                       src={graphUrl}
                       alt="Generated Graph"
                       className="w-full max-h-96 object-contain rounded shadow-lg"
+                      loading="lazy"
                     />
                     <a
                       href={graphUrl}

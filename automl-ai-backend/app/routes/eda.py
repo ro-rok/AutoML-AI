@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 from app.routes.upload import session_store
 from app.utils.logger import log, log_operation
+from app.utils.cache import cache
+from app.utils.error_responses import session_not_found_error, internal_server_error
 import time
 
 router = APIRouter()
@@ -131,12 +133,16 @@ async def get_eda_summary(session_id: str):
     start_time = time.time()
     log.info("EDA summary requested", session_id=session_id)
     
+    # Check cache first
+    cache_key = f"eda_summary:{session_id}"
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        log.info("EDA summary served from cache", session_id=session_id)
+        return JSONResponse(content=cached_result)
+    
     # Check if session exists
     if session_id not in session_store:
-        raise HTTPException(
-            status_code=404,
-            detail="Session not found. Your session may have expired. Please start a new pipeline."
-        )
+        raise session_not_found_error(session_id=session_id)
     
     try:
         # Get dataframe from session
@@ -181,7 +187,7 @@ async def get_eda_summary(session_id: str):
         total_duration = (time.time() - start_time) * 1000
         log.info(f"EDA summary completed", duration_ms=total_duration)
         
-        return JSONResponse(content={
+        result = {
             "session_id": session_id,
             "numerical_summary": numerical_summary,
             "categorical_summary": categorical_summary,
@@ -193,14 +199,16 @@ async def get_eda_summary(session_id: str):
             "column_count": int(len(df.columns)),
             "numerical_columns": numerical_cols,
             "categorical_columns": categorical_cols,
-        })
+        }
+        
+        # Cache the result for 5 minutes
+        cache.set(cache_key, result, ttl_seconds=300)
+        
+        return JSONResponse(content=result)
     
     except Exception as e:
         import traceback
         traceback.print_exc()
         duration = (time.time() - start_time) * 1000
         log.error(f"EDA summary failed", error=str(e), duration_ms=duration)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate EDA summary: {str(e)}"
-        )
+        raise internal_server_error(error_message=f"Failed to generate EDA summary: {str(e)}")

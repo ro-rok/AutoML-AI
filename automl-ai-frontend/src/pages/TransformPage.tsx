@@ -159,51 +159,53 @@ export default function TransformPage() {
   ];
 
   return (
-    <div className="bg-black text-white min-h-screen p-6">
-      <h2 className="text-2xl font-bold text-red-500 mb-4">Transform Dataset</h2>
+    <div className="bg-black text-white min-h-screen p-4 sm:p-6 md:p-8 pb-24 lg:pb-8">
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-red-500 mb-4 sm:mb-6">Transform Dataset</h2>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 bg-gray-800 p-1 rounded mb-4 overflow-x-auto">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setSelectedTab(tab.key)}
-            className={`flex-1 py-2 px-4 text-center rounded whitespace-nowrap ${
-              selectedTab === tab.key
-                ? 'bg-black text-red-500 font-semibold'
-                : 'text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {/* Tab Navigation */}
+        <div className="flex gap-2 bg-gray-800 p-1 rounded mb-4 sm:mb-6 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setSelectedTab(tab.key)}
+              className={`flex-1 py-2 px-3 sm:px-4 text-center rounded whitespace-nowrap text-sm sm:text-base min-w-[100px] ${
+                selectedTab === tab.key
+                  ? 'bg-black text-red-500 font-semibold'
+                  : 'text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab Content */}
-      <div className="mt-4">
+      <div className="mt-4 max-w-6xl mx-auto">
         {/* Skew Correction Tab */}
         {selectedTab === 'skew' && (
-          <div className="space-y-4">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <label className="block mb-2 font-semibold text-gray-300">Method</label>
-              <div className="flex flex-wrap gap-4">
+              <label className="block mb-2 sm:mb-3 font-semibold text-gray-300 text-sm sm:text-base">Method</label>
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4">
                 {['log', 'sqrt', 'boxcox', 'yeojohnson'].map((method) => (
-                  <label key={method} className="inline-flex items-center">
+                  <label key={method} className="inline-flex items-center cursor-pointer">
                     <input
                       type="radio"
                       name="skew"
                       value={method}
                       checked={skewMethod === method}
                       onChange={() => setSkewMethod(method)}
-                      className="accent-red-500"
+                      className="accent-red-500 w-4 h-4"
                     />
-                    <span className="ml-2 capitalize">{method}</span>
+                    <span className="ml-2 capitalize text-sm sm:text-base">{method}</span>
                   </label>
                 ))}
               </div>
             </div>
             <div>
-              <label className="block mb-2 font-semibold text-gray-300">
+              <label className="block mb-2 sm:mb-3 font-semibold text-gray-300 text-sm sm:text-base">
                 Select Numerical Columns
               </label>
               <div className="flex flex-wrap gap-2">
@@ -211,7 +213,7 @@ export default function TransformPage() {
                   <button
                     key={col}
                     onClick={() => toggle(skewCols, setSkewCols, col)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    className={`px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-colors min-h-[44px] ${
                       skewCols.includes(col)
                         ? 'bg-red-500 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -227,27 +229,27 @@ export default function TransformPage() {
 
         {/* Encoding Tab */}
         {selectedTab === 'encode' && (
-          <div className="space-y-4">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <label className="block mb-2 font-semibold text-gray-300">Method</label>
-              <div className="flex flex-wrap gap-4">
+              <label className="block mb-2 sm:mb-3 font-semibold text-gray-300 text-sm sm:text-base">Method</label>
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4">
                 {['label', 'onehot', 'ordinal', 'binary'].map((method) => (
-                  <label key={method} className="inline-flex items-center">
+                  <label key={method} className="inline-flex items-center cursor-pointer">
                     <input
                       type="radio"
                       name="encode"
                       value={method}
                       checked={encMethod === method}
                       onChange={() => setEncMethod(method)}
-                      className="accent-red-500"
+                      className="accent-red-500 w-4 h-4"
                     />
-                    <span className="ml-2 capitalize">{method}</span>
+                    <span className="ml-2 capitalize text-sm sm:text-base">{method}</span>
                   </label>
                 ))}
               </div>
             </div>
             <div>
-              <label className="block mb-2 font-semibold text-gray-300">
+              <label className="block mb-2 sm:mb-3 font-semibold text-gray-300 text-sm sm:text-base">
                 Select Categorical Columns
               </label>
               <div className="flex flex-wrap gap-2">
@@ -255,7 +257,7 @@ export default function TransformPage() {
                   <button
                     key={col}
                     onClick={() => toggle(encCols, setEncCols, col)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    className={`px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-colors min-h-[44px] ${
                       encCols.includes(col)
                         ? 'bg-red-500 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -271,27 +273,27 @@ export default function TransformPage() {
 
         {/* Scaling Tab */}
         {selectedTab === 'scale' && (
-          <div className="space-y-4">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <label className="block mb-2 font-semibold text-gray-300">Method</label>
-              <div className="flex flex-wrap gap-4">
+              <label className="block mb-2 sm:mb-3 font-semibold text-gray-300 text-sm sm:text-base">Method</label>
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4">
                 {['standard', 'minmax', 'robust', 'maxabs'].map((method) => (
-                  <label key={method} className="inline-flex items-center">
+                  <label key={method} className="inline-flex items-center cursor-pointer">
                     <input
                       type="radio"
                       name="scale"
                       value={method}
                       checked={scaleMethod === method}
                       onChange={() => setScaleMethod(method)}
-                      className="accent-red-500"
+                      className="accent-red-500 w-4 h-4"
                     />
-                    <span className="ml-2 capitalize">{method}</span>
+                    <span className="ml-2 capitalize text-sm sm:text-base">{method}</span>
                   </label>
                 ))}
               </div>
             </div>
             <div>
-              <label className="block mb-2 font-semibold text-gray-300">
+              <label className="block mb-2 sm:mb-3 font-semibold text-gray-300 text-sm sm:text-base">
                 Select Numerical Columns
               </label>
               <div className="flex flex-wrap gap-2">
@@ -299,7 +301,7 @@ export default function TransformPage() {
                   <button
                     key={col}
                     onClick={() => toggle(scaleCols, setScaleCols, col)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    className={`px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-colors min-h-[44px] ${
                       scaleCols.includes(col)
                         ? 'bg-red-500 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -315,37 +317,37 @@ export default function TransformPage() {
 
         {/* Class Balancing Tab */}
         {selectedTab === 'balance' && (
-          <div className="space-y-4">
-            <div className="bg-gray-900 p-4 rounded-lg">
-              <p className="text-gray-300 mb-2">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-gray-900 p-4 sm:p-6 rounded-lg">
+              <p className="text-gray-300 mb-2 sm:mb-3 text-sm sm:text-base">
                 <strong>Current Class Distribution:</strong>
               </p>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-3 sm:gap-4">
                 {Object.entries(classDist).map(([cls, count]) => (
-                  <div key={cls} className="text-sm">
+                  <div key={cls} className="text-xs sm:text-sm">
                     <span className="text-gray-400">{cls}:</span>{' '}
                     <span className="text-white font-semibold">{count}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-gray-400 text-sm mt-2 italic">
+              <p className="text-gray-400 text-xs sm:text-sm mt-2 italic">
                 Note: Balancing runs after encoding
               </p>
             </div>
             <div>
-              <label className="block mb-2 font-semibold text-gray-300">Method</label>
-              <div className="flex flex-wrap gap-4">
+              <label className="block mb-2 sm:mb-3 font-semibold text-gray-300 text-sm sm:text-base">Method</label>
+              <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-3 sm:gap-4">
                 {['smote', 'random_oversample', 'random_undersample'].map((method) => (
-                  <label key={method} className="inline-flex items-center">
+                  <label key={method} className="inline-flex items-center cursor-pointer">
                     <input
                       type="radio"
                       name="balance"
                       value={method}
                       checked={balMethod === method}
                       onChange={() => setBalMethod(method)}
-                      className="accent-red-500"
+                      className="accent-red-500 w-4 h-4"
                     />
-                    <span className="ml-2 capitalize">{method.replace('_', ' ')}</span>
+                    <span className="ml-2 capitalize text-sm sm:text-base">{method.replace('_', ' ')}</span>
                   </label>
                 ))}
               </div>
@@ -355,11 +357,11 @@ export default function TransformPage() {
       </div>
 
       {/* Apply Button */}
-      <div className="mt-6">
+      <div className="mt-6 sm:mt-8 max-w-6xl mx-auto">
         <button
           onClick={handleTransform}
           disabled={loading || !canApply()}
-          className="bg-red-500 hover:bg-red-600 px-6 py-3 rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full sm:w-auto bg-red-500 hover:bg-red-600 px-6 py-3 sm:py-4 rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base min-h-[44px]"
         >
           {loading ? 'Applying Transformations...' : 'Apply Transformations'}
         </button>
@@ -367,15 +369,15 @@ export default function TransformPage() {
 
       {/* Results Preview */}
       {result && (
-        <section className="mt-8">
-          <h3 className="text-xl font-semibold mb-4 text-gray-200">
+        <section className="mt-8 sm:mt-12 max-w-6xl mx-auto">
+          <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-200">
             Transformed Data Preview
           </h3>
-          <div className="bg-gray-900 p-4 rounded-lg mb-4">
-            <p className="text-gray-300">
+          <div className="bg-gray-900 p-4 sm:p-6 rounded-lg mb-4 sm:mb-6">
+            <p className="text-gray-300 text-sm sm:text-base mb-2">
               <strong>New Row Count:</strong> {result.new_row_count}
             </p>
-            <p className="text-gray-300">
+            <p className="text-gray-300 text-sm sm:text-base">
               <strong>New Column Count:</strong> {result.new_column_count}
             </p>
           </div>
@@ -385,7 +387,7 @@ export default function TransformPage() {
                 <tr className="bg-gray-800">
                   {result.transformed_preview.length > 0 &&
                     Object.keys(result.transformed_preview[0]).map((col) => (
-                      <th key={col} className="px-4 py-3 text-left text-sm text-gray-300 font-semibold">
+                      <th key={col} className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm text-gray-300 font-semibold">
                         {col}
                       </th>
                     ))}
@@ -395,7 +397,7 @@ export default function TransformPage() {
                 {result.transformed_preview.map((row, i) => (
                   <tr key={i} className={i % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800'}>
                     {Object.values(row).map((val, j) => (
-                      <td key={j} className="px-4 py-3 text-sm text-gray-200">
+                      <td key={j} className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-200">
                         {String(val)}
                       </td>
                     ))}

@@ -168,11 +168,11 @@ export default function ChatAssistant() {
   return (
     <>
       <button
-        className="fixed bottom-6 right-6 z-50 bg-red-900 p-3 rounded-full text-white shadow-lg hover:bg-red-800 transition-colors"
+        className="fixed bottom-6 right-6 z-50 bg-red-900 p-3 sm:p-4 rounded-full text-white shadow-lg hover:bg-red-800 transition-colors min-h-[56px] min-w-[56px] flex items-center justify-center"
         onClick={() => setOpen(o => !o)}
         aria-label="Chat assistant"
       >
-        {open ? <XIcon className="w-6 h-6" /> : <ChatIcon className="w-6 h-6" />}
+        {open ? <XIcon className="w-5 h-5 sm:w-6 sm:h-6" /> : <ChatIcon className="w-5 h-5 sm:w-6 sm:h-6" />}
       </button>
 
       <AnimatePresence>
@@ -188,16 +188,20 @@ export default function ChatAssistant() {
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
-            className="fixed bottom-20 right-6 z-40 w-80 sm:w-96 h-[70vh] bg-black flex flex-col rounded-lg shadow-xl border border-gray-800"
+            className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-40 w-[calc(100vw-2rem)] sm:w-80 md:w-96 h-[60vh] sm:h-[70vh] max-h-[600px] bg-black flex flex-col rounded-lg shadow-xl border border-gray-800"
           >
-            <div className="flex items-center justify-between bg-gray-800 px-4 py-2 rounded-t-lg">
-              <h2 className="text-white font-semibold">AI Assistant</h2>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white">
-                <XIcon className="w-5 h-5" />
+            <div className="flex items-center justify-between bg-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-t-lg">
+              <h2 className="text-white font-semibold text-sm sm:text-base">AI Assistant</h2>
+              <button 
+                onClick={() => setOpen(false)} 
+                className="text-gray-400 hover:text-white min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Close assistant"
+              >
+                <XIcon className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <div ref={messageEndRef} className="flex-1 overflow-y-auto p-3 space-y-3 text-gray-100 text-sm">
+            <div ref={messageEndRef} className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-2 sm:space-y-3 text-gray-100 text-xs sm:text-sm">
               {messages.map((m, i) => (
                 <motion.div
                   key={i}
@@ -206,7 +210,7 @@ export default function ChatAssistant() {
                   transition={{ delay: i * 0.05 }}
                   className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[80%] whitespace-pre-wrap px-3 py-2 rounded-lg backdrop-blur-sm ${
+                  <div className={`max-w-[85%] sm:max-w-[80%] whitespace-pre-wrap px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg backdrop-blur-sm ${
                     m.role === 'user'
                       ? 'bg-red-700 text-white rounded-br-none'
                       : 'bg-black/60 text-gray-100 border border-red-900/40 rounded-bl-none'
@@ -227,19 +231,19 @@ export default function ChatAssistant() {
               )}
             </div>
 
-            <div className="bg-gray-800 p-3 flex items-center gap-2 rounded-b-lg">
+            <div className="bg-gray-800 p-2 sm:p-3 flex items-center gap-2 rounded-b-lg">
               <input
                 value={draft}
                 onChange={e => setDraft(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
                 placeholder={isStreaming ? '…' : 'Ask me…'}
                 disabled={isStreaming}
-                className="flex-1 bg-gray-700 text-gray-100 placeholder-gray-400 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="flex-1 bg-gray-700 text-gray-100 placeholder-gray-400 rounded-full px-3 sm:px-4 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[44px]"
               />
               {isStreaming ? (
                 <button
                   onClick={abort}
-                  className="text-red-400 hover:text-red-200 p-2"
+                  className="text-red-400 hover:text-red-200 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Stop generation"
                 >
                   <FiStopCircle className="w-5 h-5" />
@@ -248,7 +252,8 @@ export default function ChatAssistant() {
                 <button
                   onClick={send}
                   disabled={!draft.trim()}
-                  className="text-blue-400 hover:text-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-blue-400 hover:text-blue-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] min-w-[44px] flex items-center justify-center text-lg sm:text-xl"
+                  aria-label="Send message"
                 >
                   ➤
                 </button>

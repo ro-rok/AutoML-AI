@@ -8,6 +8,7 @@ import {
   FiDownload,
 } from 'react-icons/fi'
 import logo from '../assets/bg2.webp'
+import OptimizedImage from './OptimizedImage'
 
 interface Props {
   onEnter: () => void
@@ -51,10 +52,13 @@ export default function HomePage({ onEnter }: Props) {
           }}
           className="mb-4"
         >
-          <img
+          <OptimizedImage
             src={logo}
             alt="AutomatedML AI Logo"
             className="rounded-full shadow-xl w-32 h-32 sm:w-48 sm:h-48"
+            width={192}
+            height={192}
+            loading="eager"
           />
         </motion.div>
 

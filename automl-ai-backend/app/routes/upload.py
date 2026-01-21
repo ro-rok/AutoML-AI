@@ -8,6 +8,12 @@ import traceback
 import numpy as np
 import magic  # python-magic for content sniffing
 from app.utils.mongodb_client import save_session
+from app.utils.error_responses import (
+    file_too_large_error,
+    invalid_file_format_error,
+    validation_error,
+    internal_server_error
+)
 
 router = APIRouter()
 
@@ -122,16 +128,14 @@ async def upload_dataset(file: UploadFile = File(...)):
         
         # Check file size
         if file_size > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large ({file_size / (1024*1024):.1f}MB). Maximum size is 100MB. Try reducing your dataset or sampling rows."
+            raise file_too_large_error(
+                file_size_mb=file_size / (1024*1024),
+                max_size_mb=100
             )
         
         # Validate file type by content sniffing
         if not validate_file_type(contents, file.filename or ''):
-            raise HTTPException(
-                status_code=400,
-                detail="Unsupported file format. Please upload CSV or XLSX files."
+            raise invalid_file_format_error(file_type=file.filename or 'unknown')
             )
         
         # Parse file
@@ -152,9 +156,9 @@ async def upload_dataset(file: UploadFile = File(...)):
         
         # Check if dataframe is empty
         if df.empty or len(df.columns) == 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Empty file. Please upload a file with data."
+            raise validation_error(
+                field="file",
+                message="Empty file. Please upload a file with data."
             )
         
         # Generate session ID
@@ -228,8 +232,5 @@ async def upload_dataset(file: UploadFile = File(...)):
         raise
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process file: {str(e)}"
-        )
+        raise internal_server_error(error_message=str(e))
 
