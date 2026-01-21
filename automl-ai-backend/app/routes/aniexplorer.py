@@ -1,7 +1,8 @@
 # app/routes/aniexplorer.py
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import os, pickle, numpy as np, httpx
+import os, pickle, numpy as np, httpx, asyncio
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,15 +12,23 @@ if not MAL_CLIENT_ID:
 
 router = APIRouter()
 
-with open("src/id_weights.pkl", "rb") as f:
-    id_weights = pickle.load(f)
-anime_ids = list(id_weights.keys())
+# Fix path to be relative to project root
+pkl_path = Path(__file__).parent.parent.parent / "src" / "id_weights.pkl"
+try:
+    with open(pkl_path, "rb") as f:
+        id_weights = pickle.load(f)
+    anime_ids = list(id_weights.keys())
+except FileNotFoundError:
+    raise RuntimeError(f"id_weights.pkl not found at {pkl_path}")
+except Exception as e:
+    raise RuntimeError(f"Failed to load id_weights.pkl: {e}")
 
 class FindSimilarReq(BaseModel):
     anime_name: str
     media_type: str
 
 @router.get("/")
+@router.head("/")
 async def hello():
     return {"message": "AniExplorer service alive"}
 
@@ -62,16 +71,29 @@ async def find_similar(req: FindSimilarReq):
     vec = id_weights.get(mal_id)
     if vec is None:
         raise HTTPException(404, "Not in model")
-    dists = np.dot(list(id_weights.values()), vec)
-    idxs = np.argsort(dists)[-11:]  # top 11 so we can drop the first
-    sims = sorted(
-      [
-        {"anime_details": await get_anime_details(anime_ids[i]), "similarity": float(dists[i])}
-        for i in idxs
-      ],
-      key=lambda x: x["similarity"],
-      reverse=True
-    )
+    
+    # Convert to numpy array for efficient computation
+    weight_matrix = np.array(list(id_weights.values()))
+    dists = np.dot(weight_matrix, vec)
+    idxs = np.argsort(dists)[-11:][::-1]  # top 11, descending order
+    
+    # Fetch details concurrently instead of sequentially
+    tasks = [get_anime_details(anime_ids[i]) for i in idxs]
+    details_list = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Build results, filtering out any failed fetches
+    sims = []
+    for i, details in zip(idxs, details_list):
+        if isinstance(details, Exception):
+            continue  # Skip failed fetches
+        sims.append({
+            "anime_details": details,
+            "similarity": float(dists[i])
+        })
+    
+    if not sims:
+        raise HTTPException(502, "Failed to fetch anime details")
+    
     return {
       "anime_searched": sims[0],
       "similar_animes": sims[1:],
