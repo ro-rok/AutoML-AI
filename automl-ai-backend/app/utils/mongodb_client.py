@@ -18,6 +18,8 @@ except errors.PyMongoError as exc:
 _db = _client[MONGODB_DB]
 _ml_jobs = _db[MONGODB_COLLECTION]
 _sessions = _db["sessions"]  # New collection for session persistence
+_datasets = _db["datasets"]  # Collection for storing processed datasets
+_training_results = _db["training_results"]  # Collection for training results
 
 
 def _serialize_document(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -211,5 +213,99 @@ def get_user_jobs(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         .limit(limit)
     )
     return [_serialize_document(doc) for doc in cursor]
+
+
+def save_dataset(session_id: str, data: List[Dict[str, Any]]) -> bool:
+    """
+    Save processed dataset for a session.
+    
+    Args:
+        session_id: UUID session identifier
+        data: List of row dictionaries
+    
+    Returns:
+        True if saved successfully
+    """
+    now = datetime.utcnow()
+    document = {
+        "session_id": session_id,
+        "data": sanitize_numpy(data),
+        "updated_at": now,
+    }
+    
+    _datasets.update_one(
+        {"session_id": session_id},
+        {
+            "$set": document,
+            "$setOnInsert": {"created_at": now},
+        },
+        upsert=True,
+    )
+    return True
+
+
+def get_dataset(session_id: str) -> Optional[List[Dict[str, Any]]]:
+    """
+    Retrieve processed dataset for a session.
+    
+    Args:
+        session_id: UUID session identifier
+    
+    Returns:
+        List of row dictionaries or None if not found
+    """
+    doc = _datasets.find_one({"session_id": session_id})
+    if doc:
+        return doc.get("data")
+    return None
+
+
+def save_training_results(
+    session_id: str,
+    results: List[Dict[str, Any]]
+) -> bool:
+    """
+    Save training results for a session.
+    
+    Args:
+        session_id: UUID session identifier
+        results: List of training result dictionaries
+    
+    Returns:
+        True if saved successfully
+    """
+    now = datetime.utcnow()
+    document = {
+        "session_id": session_id,
+        "results": sanitize_numpy(results),
+        "updated_at": now,
+    }
+    
+    _training_results.update_one(
+        {"session_id": session_id},
+        {
+            "$set": document,
+            "$setOnInsert": {"created_at": now},
+        },
+        upsert=True,
+    )
+    return True
+
+
+def get_training_results(session_id: str) -> Optional[List[Dict[str, Any]]]:
+    """
+    Retrieve training results for a session.
+    
+    Args:
+        session_id: UUID session identifier
+    
+    Returns:
+        List of training result dictionaries or None if not found
+    """
+    doc = _training_results.find_one({"session_id": session_id})
+    if doc:
+        return doc.get("results")
+    return None
+
 
 

@@ -4,6 +4,8 @@ from typing import Dict, List, Any, Optional
 import pandas as pd
 import numpy as np
 from app.routes.upload import session_store
+from app.utils.logger import log, log_operation
+import time
 
 router = APIRouter()
 
@@ -126,6 +128,9 @@ async def get_eda_summary(session_id: str):
     
     Requirements: 6.1, 6.2, 6.3, 6.5, 14.2
     """
+    start_time = time.time()
+    log.info("EDA summary requested", session_id=session_id)
+    
     # Check if session exists
     if session_id not in session_store:
         raise HTTPException(
@@ -136,23 +141,33 @@ async def get_eda_summary(session_id: str):
     try:
         # Get dataframe from session
         df = session_store[session_id]["data"]
+        log.info(f"Dataset loaded for EDA: {len(df)} rows, {len(df.columns)} columns")
         
         # Identify column types
         numerical_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         categorical_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
         
         # Calculate summary statistics for numerical columns
+        stats_start = time.time()
         numerical_summary = {}
         for col in numerical_cols:
             numerical_summary[col] = calculate_column_stats(df[col])
+        stats_duration = (time.time() - stats_start) * 1000
+        log.info(f"Calculated numerical statistics", duration_ms=stats_duration, num_columns=len(numerical_cols))
         
         # Calculate value counts for categorical columns
+        cat_start = time.time()
         categorical_summary = {}
         for col in categorical_cols:
             categorical_summary[col] = calculate_categorical_summary(df[col])
+        cat_duration = (time.time() - cat_start) * 1000
+        log.info(f"Calculated categorical statistics", duration_ms=cat_duration, num_columns=len(categorical_cols))
         
         # Calculate correlation matrix
+        corr_start = time.time()
         correlations = calculate_correlation_matrix(df, numerical_cols)
+        corr_duration = (time.time() - corr_start) * 1000
+        log.info(f"Calculated correlation matrix", duration_ms=corr_duration)
         
         # Extract skewness from numerical summary
         skewness = {
@@ -162,6 +177,9 @@ async def get_eda_summary(session_id: str):
         
         # Identify missing values
         missing_values = identify_missing_values(df)
+        
+        total_duration = (time.time() - start_time) * 1000
+        log.info(f"EDA summary completed", duration_ms=total_duration)
         
         return JSONResponse(content={
             "session_id": session_id,
@@ -180,6 +198,8 @@ async def get_eda_summary(session_id: str):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        duration = (time.time() - start_time) * 1000
+        log.error(f"EDA summary failed", error=str(e), duration_ms=duration)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate EDA summary: {str(e)}"
