@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
@@ -17,6 +17,7 @@ except errors.PyMongoError as exc:
 
 _db = _client[MONGODB_DB]
 _ml_jobs = _db[MONGODB_COLLECTION]
+_sessions = _db["sessions"]  # New collection for session persistence
 
 
 def _serialize_document(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -32,6 +33,144 @@ def _serialize_document(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any
         else:
             serialized[key] = value
     return serialized
+
+
+def save_session(
+    session_id: str,
+    filename: str,
+    file_size: int,
+    row_count: int,
+    column_count: int,
+    schema: List[Dict[str, Any]],
+    target_column: Optional[str] = None,
+    expiration_days: int = 7,
+) -> str:
+    """
+    Save or update a session in MongoDB with 7-day expiration.
+    
+    Args:
+        session_id: UUID session identifier
+        filename: Name of uploaded file
+        file_size: Size of file in bytes
+        row_count: Number of rows in dataset
+        column_count: Number of columns in dataset
+        schema: List of column schema dictionaries
+        target_column: Selected target column (optional)
+        expiration_days: Number of days until session expires (default: 7)
+    
+    Returns:
+        session_id
+    """
+    now = datetime.utcnow()
+    expires_at = now + timedelta(days=expiration_days)
+    
+    document = {
+        "session_id": session_id,
+        "filename": filename,
+        "file_size": file_size,
+        "row_count": row_count,
+        "column_count": column_count,
+        "schema": sanitize_numpy(schema),
+        "target_column": target_column,
+        "expires_at": expires_at,
+        "updated_at": now,
+    }
+    
+    _sessions.update_one(
+        {"session_id": session_id},
+        {
+            "$set": document,
+            "$setOnInsert": {"created_at": now},
+        },
+        upsert=True,
+    )
+    
+    # Create TTL index on expires_at if it doesn't exist
+    try:
+        _sessions.create_index("expires_at", expireAfterSeconds=0)
+    except:
+        pass  # Index might already exist
+    
+    return session_id
+
+
+def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Retrieve a session from MongoDB.
+    
+    Args:
+        session_id: UUID session identifier
+    
+    Returns:
+        Session document or None if not found
+    """
+    doc = _sessions.find_one({"session_id": session_id})
+    return _serialize_document(doc)
+
+
+def update_session_target(session_id: str, target_column: str) -> bool:
+    """
+    Update the target column for a session.
+    
+    Args:
+        session_id: UUID session identifier
+        target_column: Name of target column
+    
+    Returns:
+        True if updated successfully, False otherwise
+    """
+    result = _sessions.update_one(
+        {"session_id": session_id},
+        {
+            "$set": {
+                "target_column": target_column,
+                "updated_at": datetime.utcnow(),
+            }
+        }
+    )
+    return result.modified_count > 0
+
+
+def extend_session(session_id: str, days: int = 7) -> bool:
+    """
+    Extend session expiration by specified number of days.
+    
+    Args:
+        session_id: UUID session identifier
+        days: Number of days to extend (default: 7)
+    
+    Returns:
+        True if extended successfully, False otherwise
+    """
+    session = _sessions.find_one({"session_id": session_id})
+    if not session:
+        return False
+    
+    new_expires_at = datetime.utcnow() + timedelta(days=days)
+    result = _sessions.update_one(
+        {"session_id": session_id},
+        {
+            "$set": {
+                "expires_at": new_expires_at,
+                "updated_at": datetime.utcnow(),
+            }
+        }
+    )
+    return result.modified_count > 0
+
+
+def delete_session(session_id: str) -> bool:
+    """
+    Delete a session from MongoDB.
+    
+    Args:
+        session_id: UUID session identifier
+    
+    Returns:
+        True if deleted successfully, False otherwise
+    """
+    result = _sessions.delete_one({"session_id": session_id})
+    return result.deleted_count > 0
 
 
 def save_job_record(
@@ -72,4 +211,5 @@ def get_user_jobs(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         .limit(limit)
     )
     return [_serialize_document(doc) for doc in cursor]
+
 

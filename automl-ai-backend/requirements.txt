@@ -16,3 +16,5 @@ requests
 shap
 pymongo[srv]
 httpx
+python-magic
+openpyxl

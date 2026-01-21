@@ -59,6 +59,8 @@ interface SessionState {
   // Session expiration
   expiresAt: Date | null;
   setExpiresAt: (date: Date) => void;
+  createdAt: Date | null;
+  setCreatedAt: (date: Date) => void;
   
   // Reset
   resetSession: () => void;
@@ -73,6 +75,7 @@ const initialState = {
   datasetState: null,
   preview: [],
   expiresAt: null,
+  createdAt: null,
 };
 
 export const useSessionStore = create<SessionState>()(
@@ -93,6 +96,8 @@ export const useSessionStore = create<SessionState>()(
       setPreview: (preview) => set({ preview }),
       
       setExpiresAt: (date) => set({ expiresAt: date }),
+      
+      setCreatedAt: (date) => set({ createdAt: date }),
       
       resetSession: () => set(initialState),
     }),
