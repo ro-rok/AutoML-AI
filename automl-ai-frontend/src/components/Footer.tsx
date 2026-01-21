@@ -1,8 +1,11 @@
 import { FiGithub } from 'react-icons/fi'
+import SessionInfo from './SessionInfo'
 
 export default function Footer() {
   return (
-    <footer className="w-full h-10 bg-black fixed bottom-0 z-50 flex items-center justify-center text-gray-500 text-xs">
+    <footer className="w-full h-10 bg-black fixed bottom-0 z-50 flex items-center justify-between px-6 text-gray-500 text-xs">
+      <SessionInfo />
+      
       <a
         href="https://github.com/ro-rok"
         target="_blank"

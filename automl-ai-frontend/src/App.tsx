@@ -8,11 +8,13 @@ import { toast } from "react-hot-toast"
 import { api } from "./api/client"
 import { Analytics } from "@vercel/analytics/react"
 import { PAGE_TRANSITION } from "./utils/motionConstants"
+import { useSessionRestoration } from "./hooks/useSessionRestoration"
 
 import Header from "./components/Header"
 import Footer from "./components/Footer"
 import ChatAssistant from "./components/ChatAssistant"
 import PipelineSpine from "./components/PipelineSpine"
+import SessionExpirationBanner from "./components/SessionExpirationBanner"
 
 // Lazy load pages for code splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -47,6 +49,14 @@ function LoadingFallback() {
 // Animated routes wrapper
 function AnimatedRoutes() {
   const location = useLocation();
+  
+  // Restore session state on app initialization
+  const { isRestoring } = useSessionRestoration();
+  
+  // Show loading while restoring session
+  if (isRestoring) {
+    return <LoadingFallback />;
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -180,6 +190,9 @@ export default function App() {
         <div className="relative flex flex-col bg-bg-base text-text-primary min-h-screen">
           {/* Fixed header */}
           <Header onLogoClick={() => {}} />
+
+          {/* Session expiration banner */}
+          <SessionExpirationBanner />
 
           {/* Pipeline Spine */}
           <PipelineSpine />

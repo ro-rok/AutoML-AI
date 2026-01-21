@@ -66,6 +66,23 @@ def save_session(
     now = datetime.utcnow()
     expires_at = now + timedelta(days=expiration_days)
     
+    # Initialize step states
+    steps = {
+        "upload": {
+            "status": "completed",
+            "completed_at": now.isoformat() + "Z",
+            "validations": [],
+            "ai_suggestions": [],
+            "artifacts": []
+        },
+        "eda": {"status": "ready", "validations": [], "ai_suggestions": [], "artifacts": []},
+        "clean": {"status": "locked", "validations": [], "ai_suggestions": [], "artifacts": []},
+        "transform": {"status": "locked", "validations": [], "ai_suggestions": [], "artifacts": []},
+        "train": {"status": "locked", "validations": [], "ai_suggestions": [], "artifacts": []},
+        "results": {"status": "locked", "validations": [], "ai_suggestions": [], "artifacts": []},
+        "export": {"status": "locked", "validations": [], "ai_suggestions": [], "artifacts": []}
+    }
+    
     document = {
         "session_id": session_id,
         "filename": filename,
@@ -76,6 +93,12 @@ def save_session(
         "target_column": target_column,
         "expires_at": expires_at,
         "updated_at": now,
+        "state_version": 1,
+        "current_step": "eda",
+        "steps": steps,
+        "operations_log": [],
+        "trained_models": [],
+        "selected_model_id": None,
     }
     
     _sessions.update_one(
@@ -173,6 +196,125 @@ def delete_session(session_id: str) -> bool:
     """
     result = _sessions.delete_one({"session_id": session_id})
     return result.deleted_count > 0
+
+
+def update_session_state(
+    session_id: str,
+    state_version: int,
+    updates: Dict[str, Any]
+) -> Tuple[bool, Optional[int], Optional[str]]:
+    """
+    Update session state with version conflict detection.
+    
+    Args:
+        session_id: UUID session identifier
+        state_version: Expected current state version
+        updates: Dictionary of fields to update
+    
+    Returns:
+        Tuple of (success, new_state_version, error_message)
+        - If successful: (True, new_version, None)
+        - If version conflict: (False, current_version, "STALE_STATE_VERSION")
+        - If session not found: (False, None, "SESSION_NOT_FOUND")
+    """
+    session = _sessions.find_one({"session_id": session_id})
+    if not session:
+        return False, None, "SESSION_NOT_FOUND"
+    
+    current_version = session.get("state_version", 1)
+    if current_version != state_version:
+        return False, current_version, "STALE_STATE_VERSION"
+    
+    new_version = current_version + 1
+    updates["state_version"] = new_version
+    updates["updated_at"] = datetime.utcnow()
+    
+    result = _sessions.update_one(
+        {"session_id": session_id, "state_version": state_version},
+        {"$set": updates}
+    )
+    
+    if result.modified_count > 0:
+        return True, new_version, None
+    else:
+        # Race condition - version changed between find and update
+        session = _sessions.find_one({"session_id": session_id})
+        current_version = session.get("state_version", 1) if session else None
+        return False, current_version, "STALE_STATE_VERSION"
+
+
+def update_step_status(
+    session_id: str,
+    step_name: str,
+    status: str,
+    validations: Optional[List[str]] = None,
+    ai_suggestions: Optional[List[str]] = None,
+    artifacts: Optional[List[str]] = None
+) -> bool:
+    """
+    Update the status of a specific pipeline step.
+    
+    Args:
+        session_id: UUID session identifier
+        step_name: Name of the step (upload, eda, clean, etc.)
+        status: New status (locked, ready, in_progress, completed, error)
+        validations: Optional list of validation messages
+        ai_suggestions: Optional list of AI suggestions
+        artifacts: Optional list of artifact URLs
+    
+    Returns:
+        True if updated successfully, False otherwise
+    """
+    update_fields = {
+        f"steps.{step_name}.status": status,
+        "updated_at": datetime.utcnow(),
+    }
+    
+    if status == "completed":
+        update_fields[f"steps.{step_name}.completed_at"] = datetime.utcnow().isoformat() + "Z"
+    
+    if validations is not None:
+        update_fields[f"steps.{step_name}.validations"] = validations
+    
+    if ai_suggestions is not None:
+        update_fields[f"steps.{step_name}.ai_suggestions"] = ai_suggestions
+    
+    if artifacts is not None:
+        update_fields[f"steps.{step_name}.artifacts"] = artifacts
+    
+    result = _sessions.update_one(
+        {"session_id": session_id},
+        {"$set": update_fields}
+    )
+    
+    return result.modified_count > 0
+
+
+def add_operation_to_log(
+    session_id: str,
+    operation: Dict[str, Any]
+) -> bool:
+    """
+    Add an operation (clean/transform) to the session's operations log.
+    
+    Args:
+        session_id: UUID session identifier
+        operation: Operation dictionary with type, details, timestamp
+    
+    Returns:
+        True if added successfully, False otherwise
+    """
+    operation["timestamp"] = datetime.utcnow().isoformat() + "Z"
+    
+    result = _sessions.update_one(
+        {"session_id": session_id},
+        {
+            "$push": {"operations_log": sanitize_numpy(operation)},
+            "$set": {"updated_at": datetime.utcnow()}
+        }
+    )
+    
+    return result.modified_count > 0
 
 
 def save_job_record(
