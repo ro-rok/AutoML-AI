@@ -14,7 +14,7 @@ import { api } from '../api/client'
 import { useSessionStore } from '../store/useSessionStore'
 
 export default function UploadPage() {
-  const { setSessionId, preview, setPreview, schema, setSchema, setFileName, fileName } =
+  const { setSessionId, preview, setPreview, schema, setSchema, setFileMetadata, fileName } =
     useSessionStore()
 
   const [file, setFile] = useState<File | null>(null)
@@ -28,7 +28,7 @@ export default function UploadPage() {
     return cnt
   }, [schema])
 
-  const iconFor = (type: typeof schema[0]['inferred_type']) => {
+  const iconFor = (type: typeof schema[0]['inferredType']) => {
     switch (type) {
       case 'numerical':
         return <FiBarChart2 className="inline text-red-400" />
@@ -61,7 +61,7 @@ export default function UploadPage() {
       setSessionId(res.data.session_id)
       setPreview(res.data.preview)
       setSchema(res.data.schema)
-      setFileName(file.name)
+      setFileMetadata(file.name, file.size)
     } catch (err: any) {
       console.error(err)
       alert('Upload failed: ' + (err.response?.data?.detail || err.message))
@@ -84,7 +84,7 @@ export default function UploadPage() {
       setSessionId(upload.data.session_id)
       setPreview(upload.data.preview)
       setSchema(upload.data.schema)
-      setFileName(sampleFile.name)
+      setFileMetadata(sampleFile.name, sampleFile.size)
     } catch (err: any) {
       console.error(err)
       alert('Sample load failed: ' + err.message)
@@ -187,7 +187,7 @@ export default function UploadPage() {
                 <div>Sample rows: {preview.length}</div>
                 <div>
                   Missing cells:{' '}
-                  {schema.reduce((sum, c) => sum + c.null_count, 0)}
+                  {schema.reduce((sum, c) => sum + c.nullCount, 0)}
                 </div>
                 <div>
                   <span className="font-semibold">Raw dtypes:</span>{' '}
@@ -202,10 +202,10 @@ export default function UploadPage() {
                   <ul className="mt-1 grid grid-cols-2 gap-2 text-sm">
                     {schema.map((c, i) => (
                       <li key={i} className="flex items-center gap-1">
-                        {iconFor(c.inferred_type)} {c.column}{' '}
-                        {c.null_count > 0 && (
+                        {iconFor(c.inferredType)} {c.name}{' '}
+                        {c.nullCount > 0 && (
                           <span className="ml-auto px-1 bg-yellow-600 text-xs rounded">
-                            {c.null_count} null
+                            {c.nullCount} null
                           </span>
                         )}
                       </li>
@@ -264,12 +264,12 @@ export default function UploadPage() {
                         key={i}
                         className={i % 2 === 0 ? 'bg-gray-700' : 'bg-gray-800'}
                       >
-                        <td className="px-2 py-1">{c.column}</td>
+                        <td className="px-2 py-1">{c.name}</td>
                         <td className="px-2 py-1">{c.dtype}</td>
                         <td className="px-2 py-1 flex items-center gap-1">
-                          {iconFor(c.inferred_type)} {c.inferred_type}
+                          {iconFor(c.inferredType)} {c.inferredType}
                         </td>
-                        <td className="px-2 py-1">{c.null_count}</td>
+                        <td className="px-2 py-1">{c.nullCount}</td>
                       </tr>
                     ))}
                   </tbody>

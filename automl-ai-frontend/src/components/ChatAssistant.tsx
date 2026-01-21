@@ -42,7 +42,7 @@ export default function ChatAssistant() {
   const [streaming, setStreaming] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
-  const { currentStep } = useStepStore();
+  const { currentStep } = useStepStore() as any;
   useClickAway(panel, () => setOpen(false));
 
   useEffect(() => {

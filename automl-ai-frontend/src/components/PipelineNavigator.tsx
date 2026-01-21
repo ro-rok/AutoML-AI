@@ -60,8 +60,8 @@ function WavyArrow() {
 export default function PipelineNavigator() {
   const { width, height } = useWindowSize()
   const isMobile = width < 768
-  const current = useStepStore((state) => state.currentStep)
-  const setStep = useStepStore((state) => state.setStep)
+  const current = useStepStore((state: any) => state.currentStep)
+  const setStep = useStepStore((state: any) => state.setStep)
 
   // DESKTOP: apply pipeline-bg here
   if (!isMobile) {
