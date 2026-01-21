@@ -1,333 +1,363 @@
 // src/pages/CleanPage.tsx
 import { useState, useEffect } from 'react';
-import { Tab, TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/react';
 import { api } from '../api/client';
 import { useSessionStore } from '../store/useSessionStore';
+import { useNavigate } from 'react-router-dom';
 
+interface CleaningOperation {
+  column: string;
+  strategy: string;
+  fill_value?: any;
+}
 
-const GRAPH_TYPES: Record<'numeric' | 'categorical', { value: string; label: string }[]> = {
-  numeric: [
-    { value: 'histogram', label: 'Histogram Graph' },
-    { value: 'boxplot', label: 'Boxplot Graph' },
-    { value: 'scatter', label: 'Scatter Graph' },
-    { value: 'line', label: 'Line Graph' },
-    { value: 'qq', label: 'QQ Plot' },
-  ],
-  categorical: [
-    { value: 'bar', label: 'Bar Graph' },
-    { value: 'pie', label: 'Pie Chart' },
-  ],
-};
+interface PreviewDiff {
+  before: any[];
+  after: any[];
+  changed_rows: number;
+  deleted_rows: number;
+}
+
 export default function CleanPage() {
   const { sessionId } = useSessionStore();
+  const navigate = useNavigate();
 
-  // Cleaning state
-  const [beforeNulls, setBeforeNulls] = useState<Record<string, number>>({});
-  const [strategies, setStrategies] = useState<Record<string, string>>({});
-  const [allCols, setAllCols] = useState<string[]>([]);
-  const [target, setTarget] = useState<string>('');
-  const [loadingClean, setLoadingClean] = useState(false);
-  const [preview, setPreview] = useState<any[]>([]);
-  const [numericCols, setNumericCols] = useState<string[]>([]);
-  const [categoricalCols, setCategoricalCols] = useState<string[]>([]);
-  
-  // Graph state
-  const [selCat, setSelCat] = useState<'numeric'|'categorical'|''>('');
-  const [selCols, setSelCols] = useState<string[]>([]);
-  const [selGraph, setSelGraph] = useState<string>('');
-  const [graphUrl, setGraphUrl] = useState<string|null>(null);
-  const [gLoading, setGLoading] = useState(false);
+  // State
+  const [loading, setLoading] = useState(true);
+  const [schema, setSchema] = useState<any[]>([]);
+  const [columnsWithMissing, setColumnsWithMissing] = useState<any[]>([]);
+  const [strategies, setStrategies] = useState<Record<string, CleaningOperation>>({});
+  const [preview, setPreview] = useState<PreviewDiff | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Fetch initial metadata (null counts, preview, cols, graph types)
+  // Fetch session state to get schema and missing values
   useEffect(() => {
-    async function fetchMeta() {
+    async function fetchSessionState() {
+      if (!sessionId) {
+        navigate('/upload');
+        return;
+      }
+
       try {
-        const res = await api.post('/pipeline/clean', {
-          session_id: sessionId,
-          // dummy fill so backend returns metadata but no changes
-          fill_strategies: {},
-          target_column: ''
+        setLoading(true);
+        const res = await api.get(`/session/state?session_id=${sessionId}`);
+        const sessionData = res.data;
+
+        setSchema(sessionData.schema || []);
+
+        // Find columns with missing values
+        const missing = (sessionData.schema || []).filter(
+          (col: any) => col.null_count > 0
+        );
+        setColumnsWithMissing(missing);
+
+        // Initialize default strategies (fill_mean for numerical, fill_mode for categorical)
+        const defaultStrategies: Record<string, CleaningOperation> = {};
+        missing.forEach((col: any) => {
+          const isNumerical = col.inferred_type === 'numerical';
+          defaultStrategies[col.column] = {
+            column: col.column,
+            strategy: isNumerical ? 'fill_mean' : 'fill_mode',
+          };
         });
-        const {
-          before_nulls,
-          numeric_cols,
-          categorical_cols,
-          preview: prv
-        } = res.data;
-        // set null-columns and default "mean"
-        setBeforeNulls(before_nulls);
-        const nullCols = Object.keys(before_nulls);
-        setStrategies(Object.fromEntries(nullCols.map(c => [c, 'mean'])));
-        // derive all columns from preview keys
-        const cols = prv[0] ? Object.keys(prv[0]) : [];
-        setAllCols(cols);
-        setTarget(res.data.target_column || cols[cols.length - 1] || '');
-        setPreview(prv);
-        setNumericCols(numeric_cols);
-        setCategoricalCols(categorical_cols);
+        setStrategies(defaultStrategies);
       } catch (err) {
-        console.error('Failed to load cleaning metadata', err);
+        console.error('Failed to load session state', err);
+      } finally {
+        setLoading(false);
       }
     }
-    fetchMeta();
-  }, [sessionId]);
 
-  // Apply cleaning
-  const applyClean = async () => {
-    setLoadingClean(true);
+    fetchSessionState();
+  }, [sessionId, navigate]);
+
+  // Preview cleaning operations
+  const handlePreview = async () => {
+    if (Object.keys(strategies).length === 0) return;
+
     try {
-      const res = await api.post('/pipeline/clean', {
+      setPreviewLoading(true);
+      const operations = Object.values(strategies);
+      const res = await api.post('/clean/preview', {
         session_id: sessionId,
-        fill_strategies: strategies,
-        target_column: target
+        operations,
       });
+
       setPreview(res.data.preview);
-      setBeforeNulls(res.data.after_nulls); // show remaining nulls
     } catch (err) {
-      console.error('Clean error', err);
+      console.error('Failed to preview cleaning', err);
     } finally {
-      setLoadingClean(false);
+      setPreviewLoading(false);
     }
   };
 
-  // Generate graph
-  const generateGraph = async () => {
-    if (!selCat || !selGraph || selCols.length===0) return;
-    setGLoading(true);
-    const params: any = { session_id: sessionId };
-    if (['histogram','boxplot','qq'].includes(selGraph)) {
-      params.column = selCols[0];
-    } else if (selGraph==='scatter' || selGraph==='line') {
-      params.x = selCols[0]; params.y = selCols[1] || selCols[0];
-    } else {
-      params.column = selCols[0];
-    }
+  // Apply cleaning operations
+  const handleApply = async () => {
+    if (Object.keys(strategies).length === 0) return;
+
     try {
-      const res = await api.get(`/graph/${selGraph}`, {
-        params,
-        responseType: 'blob'
+      setApplying(true);
+      const operations = Object.values(strategies);
+      const idempotencyKey = `clean-${Date.now()}`;
+
+      await api.post('/clean/apply', {
+        session_id: sessionId,
+        operations,
+        idempotency_key: idempotencyKey,
       });
-      setGraphUrl(URL.createObjectURL(res.data));
-    } catch(err) {
-      console.error(err);
+
+      // Navigate to next step (transform)
+      navigate('/transform');
+    } catch (err: any) {
+      console.error('Failed to apply cleaning', err);
+      if (err.response?.status === 409) {
+        alert('Session state conflict. Please refresh and try again.');
+      }
     } finally {
-      setGLoading(false);
+      setApplying(false);
     }
   };
+
+  // Reset step
+  const handleReset = async () => {
+    if (!confirm('Reset all cleaning operations? This will restore the dataset to its original state.')) {
+      return;
+    }
+
+    try {
+      await api.post(`/clean/reset?session_id=${sessionId}`);
+      // Reload page to refresh state
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to reset cleaning', err);
+    }
+  };
+
+  // Update strategy for a column
+  const updateStrategy = (column: string, strategy: string, fillValue?: any) => {
+    setStrategies((prev) => ({
+      ...prev,
+      [column]: {
+        column,
+        strategy,
+        fill_value: fillValue,
+      },
+    }));
+    // Clear preview when strategy changes
+    setPreview(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-black text-white min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (columnsWithMissing.length === 0) {
+    return (
+      <div className="bg-black text-white min-h-screen pb-16">
+        <div className="max-w-4xl mx-auto p-8">
+          <h2 className="text-3xl font-bold text-red-500 mb-4">Clean Missing Values</h2>
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+            <p className="text-green-500 text-lg font-medium mb-4">
+              ✓ No missing values found in your dataset!
+            </p>
+            <p className="text-gray-400 mb-6">
+              Your dataset is clean and ready for transformation.
+            </p>
+            <button
+              onClick={() => navigate('/transform')}
+              className="px-6 py-3 bg-red-500 hover:bg-red-600 rounded-lg font-semibold transition-colors"
+            >
+              Continue to Transform
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-black text-white min-h-screen pb-16">
-      <div className="max-w-4xl mx-auto p-4">
-      <h2 className="text-2xl font-bold text-red-500 mb-4">Clean Missing Values</h2>
-        <TabGroup>
-          <TabList className="flex space-x-1 bg-gray-800 p-1 rounded mb-4">
-            {['Cleaning', 'Graphs'].map(tab => (
-              <Tab
-                key={tab}
-                className={({ selected }) =>
-                  `flex-1 py-2 text-center rounded ${
-                    selected
-                      ? 'bg-black text-red-500 font-semibold'
-                      : 'text-gray-400 hover:bg-gray-700'
-                  }`
-                }
-              >{tab}</Tab>
-            ))}
-          </TabList>
+      <div className="max-w-6xl mx-auto p-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-red-500 mb-2">Clean Missing Values</h2>
+          <p className="text-gray-400">
+            Handle missing values in your dataset by selecting a cleaning strategy for each column.
+          </p>
+        </div>
 
-          <TabPanels className="mt-4">
-          {/* ───── Cleaning Tab ───── */}
-          <TabPanel>
-            <div className="space-y-4">
-              {Object.values(beforeNulls).every(cnt => cnt === 0) ? (
-                <div className="text-green-500 font-medium">No null values found</div>
-              ) : (
-                Object.entries(beforeNulls).map(([col, cnt]) => (
-                  <div key={col} className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{col} ({cnt} missing)</span>
-                    </div>
-                    <div className="flex gap-4 flex-wrap">
-                      {['mean', 'median', 'mode','drop'].map(opt => (
-                        <label key={opt} className="flex items-center space-x-1">
-                          <input
-                            type="radio"
-                            name={`strat-${col}`}
-                            value={opt}
-                            checked={strategies[col] === opt}
-                            onChange={() =>
-                              setStrategies(s => ({ ...s, [col]: opt }))
-                            }
-                            className="accent-red-500"
-                          />
-                          <span className="capitalize text-gray-300">{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              )}
+        {/* Columns with missing values */}
+        <div className="space-y-6 mb-8">
+          {columnsWithMissing.map((col) => {
+            const currentStrategy = strategies[col.column]?.strategy || 'fill_mean';
+            const isNumerical = col.inferred_type === 'numerical';
 
-              <div className="mt-6">
-                <span className="font-medium">Target Column:</span>
-                <div className="mt-1 flex flex-wrap gap-3">
-                  {allCols.map(col => (
-                    <label key={col} className="flex items-center space-x-1">
-                      <input
-                        type="radio"
-                        name="target-col"
-                        value={col}
-                        checked={target === col}
-                        onChange={() => setTarget(col)}
-                        className="accent-red-500"
-                      />
-                      <span className="text-gray-300">{col}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={applyClean}
-                disabled={loadingClean}
-                className="mt-4 px-4 py-1 bg-red-500 hover:bg-red-600 rounded font-semibold disabled:opacity-50"
+            return (
+              <div
+                key={col.column}
+                className="bg-gray-900 border border-gray-800 rounded-lg p-6"
               >
-                {Object.values(beforeNulls).every(cnt => cnt === 0)
-                  ? 'Set Target Column'
-                  : loadingClean
-                  ? 'Cleaning'
-                  : 'Apply Cleaning'}
-              </button>
-
-
-              {preview.length > 0 && (
-                <div className="mt-8 bg-gray-800 p-4 rounded">
-                  <h3 className="font-semibold mb-2">Preview (first 5 rows)</h3>
-                  <div className="overflow-auto">
-                    <table className="w-full table-auto border-collapse">
-                      <thead>
-                        <tr>
-                          {Object.keys(preview[0]).map(col => (
-                            <th key={col} className="px-2 py-1 text-left text-sm border-b">
-                              {col}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preview.map((row, i) => (
-                          <tr key={i} className={i % 2 ? 'bg-gray-700' : 'bg-gray-800'}>
-                            {Object.values(row).map((val, j) => (
-                              <td key={j} className="px-2 py-1 text-xs">{String(val)}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">{col.column}</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {col.null_count} missing ({((col.null_count / col.total_count) * 100).toFixed(1)}%)
+                      • Type: {col.inferred_type}
+                    </p>
                   </div>
                 </div>
-              )}
-            </div>
-          </TabPanel>
 
-            {/* ───── Graphs Tab ───── */}
-            <TabPanel className="space-y-4">
-              <div className="flex space-x-6">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    name="cat"
-                    className="accent-red-500"
-                    checked={selCat==='numeric'}
-                    onChange={()=>{ setSelCat('numeric'); setSelCols([]); setSelGraph(''); setGraphUrl(null); }}
-                  />
-                  <span>Numeric</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    name="cat"
-                    className="accent-red-500"
-                    checked={selCat==='categorical'}
-                    onChange={()=>{ setSelCat('categorical'); setSelCols([]); setSelGraph(''); setGraphUrl(null); }}
-                  />
-                  <span>Categorical</span>
-                </label>
-              </div>
-  
-              {selCat && (
-                <div className="space-y-4">
-                  {/* select graph */}
-                  <div>
-                    <label className="block mb-1">Graph Type</label>
-                    <select
-                      value={selGraph}
-                      onChange={e=>{ setSelGraph(e.target.value); setSelCols([]); setGraphUrl(null); }}
-                      className="bg-gray-800 text-white p-2 rounded w-full"
+                {/* Strategy selector */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Cleaning Strategy
+                  </label>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* Drop rows */}
+                    <button
+                      onClick={() => updateStrategy(col.column, 'drop_rows')}
+                      className={`px-4 py-3 rounded-lg border transition-all ${
+                        currentStrategy === 'drop_rows'
+                          ? 'bg-red-500 border-red-500 text-white'
+                          : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                      }`}
                     >
-                      <option value="">— choose —</option>
-                      {GRAPH_TYPES[selCat].map(g=>(
-                        <option key={g.value} value={g.value}>{g.label}</option>
-                      ))}
-                    </select>
-                  </div>
-  
-                  {/* select columns */}
-                  <div>
-                    <label className="block mb-1">Column{selGraph==='scatter'||selGraph==='line'? 's': ''}</label>
-                    <div className="flex flex-wrap gap-3">
-                      {(selCat==='numeric'? numericCols : categoricalCols).map(col=>(
-                        <label key={col} className="flex items-center space-x-2">
-                          <input
-                            type={selGraph==='scatter' ? 'checkbox' : 'radio'}
-                            name="cols"
-                            className="accent-red-500"
-                            value={col}
-                            checked={selCols.includes(col)}
-                            onChange={e=>{
-                              const v=e.target.value;
-                              setSelCols(prev=>{
-                                if (e.target.type==='radio') return [v];
-                                // checkbox
-                                return prev.includes(v)
-                                  ? prev.filter(x=>x!==v)
-                                  : [...prev, v].slice(0,2);
-                              });
-                              setGraphUrl(null);
-                            }}
-                          />
-                          <span>{col}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-  
-                  {/* generate */}
-                  <button
-                    onClick={generateGraph}
-                    disabled={!selGraph||selCols.length===0||gLoading}
-                    className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded disabled:opacity-50"
-                  >
-                    {gLoading? 'Generating…':'Generate'}
-                  </button>
-  
-                  {graphUrl && (
-                    <div className="mt-4">
-                      <img src={graphUrl} alt="Graph" className="w-full max-h-64 object-contain rounded shadow-lg" />
-                      <a
-                        href={graphUrl}
-                        download={`${selGraph}.png`}
-                        className="block mt-2 text-red-500 underline text-center"
+                      Drop Rows
+                    </button>
+
+                    {/* Fill mean (numerical only) */}
+                    {isNumerical && (
+                      <button
+                        onClick={() => updateStrategy(col.column, 'fill_mean')}
+                        className={`px-4 py-3 rounded-lg border transition-all ${
+                          currentStrategy === 'fill_mean'
+                            ? 'bg-red-500 border-red-500 text-white'
+                            : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                        }`}
                       >
-                        Download PNG
-                      </a>
-                    </div>
-                  )}
+                        Fill Mean
+                      </button>
+                    )}
+
+                    {/* Fill median (numerical only) */}
+                    {isNumerical && (
+                      <button
+                        onClick={() => updateStrategy(col.column, 'fill_median')}
+                        className={`px-4 py-3 rounded-lg border transition-all ${
+                          currentStrategy === 'fill_median'
+                            ? 'bg-red-500 border-red-500 text-white'
+                            : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                        }`}
+                      >
+                        Fill Median
+                      </button>
+                    )}
+
+                    {/* Fill mode */}
+                    <button
+                      onClick={() => updateStrategy(col.column, 'fill_mode')}
+                      className={`px-4 py-3 rounded-lg border transition-all ${
+                        currentStrategy === 'fill_mode'
+                          ? 'bg-red-500 border-red-500 text-white'
+                          : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                      }`}
+                    >
+                      Fill Mode
+                    </button>
+
+                    {/* Forward fill */}
+                    <button
+                      onClick={() => updateStrategy(col.column, 'forward_fill')}
+                      className={`px-4 py-3 rounded-lg border transition-all ${
+                        currentStrategy === 'forward_fill'
+                          ? 'bg-red-500 border-red-500 text-white'
+                          : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                      }`}
+                    >
+                      Forward Fill
+                    </button>
+
+                    {/* Backward fill */}
+                    <button
+                      onClick={() => updateStrategy(col.column, 'backward_fill')}
+                      className={`px-4 py-3 rounded-lg border transition-all ${
+                        currentStrategy === 'backward_fill'
+                          ? 'bg-red-500 border-red-500 text-white'
+                          : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                      }`}
+                    >
+                      Backward Fill
+                    </button>
+                  </div>
                 </div>
-              )}
-            </TabPanel>
-          </TabPanels>
-        </TabGroup>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Preview diff */}
+        {preview && (
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8">
+            <h3 className="text-xl font-semibold text-white mb-4">Preview Changes</h3>
+            <p className="text-sm text-gray-400 mb-4">
+              {preview.deleted_rows > 0
+                ? `${preview.deleted_rows} rows will be deleted`
+                : 'No rows will be deleted'}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Before */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Before</h4>
+                <div className="bg-gray-800 rounded-lg p-4 overflow-auto max-h-64">
+                  <pre className="text-xs text-gray-300">
+                    {JSON.stringify(preview.before, null, 2)}
+                  </pre>
+                </div>
+              </div>
+
+              {/* After */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-300 mb-2">After</h4>
+                <div className="bg-gray-800 rounded-lg p-4 overflow-auto max-h-64">
+                  <pre className="text-xs text-gray-300">
+                    {JSON.stringify(preview.after, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handlePreview}
+            disabled={previewLoading || Object.keys(strategies).length === 0}
+            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {previewLoading ? 'Loading Preview...' : 'Preview Changes'}
+          </button>
+
+          <button
+            onClick={handleApply}
+            disabled={applying || Object.keys(strategies).length === 0}
+            className="px-6 py-3 bg-red-500 hover:bg-red-600 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {applying ? 'Applying...' : 'Apply All'}
+          </button>
+
+          <button
+            onClick={handleReset}
+            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-semibold transition-colors"
+          >
+            Reset Step
+          </button>
+        </div>
       </div>
     </div>
   );
