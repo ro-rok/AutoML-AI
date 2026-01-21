@@ -4,92 +4,171 @@ import nbformat
 from nbformat.v4 import new_notebook, new_markdown_cell, new_code_cell
 from reportlab.lib.pagesizes import inch
 from .pdf_report import PDFReport
+from typing import Dict, Any
 
 
-def generate_pdf(session_id: str, session_data: dict) -> str:
+def generate_pdf(session_id: str, session_data: dict, config: Dict[str, Any] = None) -> str:
+    """
+    Generate a multi-page PDF report with charts and summaries.
+    
+    Args:
+        session_id: Session identifier
+        session_data: Session data from MongoDB
+        config: Export configuration with include_sections and branding
+    
+    Returns:
+        Path to generated PDF file
+    """
     try:
-        df = pd.DataFrame(session_data.get("data", []))
+        # Extract config
+        if config is None:
+            config = {}
+        include_sections = config.get("include_sections", {})
+        branding = config.get("branding", {})
+        
+        # Get data from session
+        # Handle both old format (data key) and new format (dataset key)
+        data = session_data.get("data", [])
+        if not data and "dataset" in session_data:
+            # New format: dataset contains sample_rows
+            data = session_data["dataset"].get("sample_rows", [])
+        
+        df = pd.DataFrame(data) if data else pd.DataFrame()
+        
+        # Get metadata
         meta = session_data.get("meta", {})
         steps = meta.get("steps", {})
+        
+        # Get dataset info from new format if available
+        dataset_info = session_data.get("dataset", {})
+        file_name = dataset_info.get("file_name", meta.get('filename', 'unknown'))
+        target_column = dataset_info.get("target_column", meta.get('target_column', ''))
+        row_count = dataset_info.get("row_count", df.shape[0] if not df.empty else 0)
+        column_count = dataset_info.get("column_count", df.shape[1] if not df.empty else 0)
 
         out_path = f"{session_id}_report.pdf"
-        report = PDFReport(out_path)
+        
+        # Use branding if provided
+        title = branding.get("title", "AutoML-AI Report")
+        report = PDFReport(out_path, title=title)
 
-        # Session Info
+        # Session Info (always included)
         info = (
             f"Session ID: {session_id}\n"
-            f"Filename: {meta.get('filename','')}\n"
+            f"Filename: {file_name}\n"
             f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Target Column: {meta.get('target_column','')}\n"
-            f"Data Shape: {df.shape[0]} rows × {df.shape[1]} columns"
+            f"Target Column: {target_column}\n"
+            f"Data Shape: {row_count} rows × {column_count} columns"
         )
         report.add_section("Session Information", info)
 
-        # EDA: Correlation & Skewness
-        num = df.select_dtypes(include=["number"])
-        corr = num.corr().round(2)
-        skew = num.skew().round(2)
+        # Dataset Summary
+        if include_sections.get("datasetSummary", True) and not df.empty:
+            report.add_section("Dataset Summary")
+            summary_text = f"Total Rows: {row_count}\nTotal Columns: {column_count}\n"
+            if "schema" in dataset_info:
+                schema = dataset_info["schema"]
+                numerical_cols = [col["name"] for col in schema if col.get("inferred_type") == "numerical"]
+                categorical_cols = [col["name"] for col in schema if col.get("inferred_type") == "categorical"]
+                summary_text += f"Numerical Columns: {len(numerical_cols)}\nCategorical Columns: {len(categorical_cols)}"
+            report.add_section("", summary_text)
 
-        # Correlation table (first 3 cols)
-        corr_cols = corr.columns[:3]
-        corr_data = [[""] + list(corr_cols)]
-        for c in corr_cols:
-            corr_data.append([c] + [f"{corr.loc[c, c2]:.2f}" for c2 in corr_cols])
-        report.add_section("Correlation (first 3 numeric columns)")
-        report.add_table(corr_data)
+        # EDA Charts
+        if include_sections.get("edaCharts", True) and not df.empty:
+            num = df.select_dtypes(include=["number"])
+            if not num.empty:
+                corr = num.corr().round(2)
+                skew = num.skew().round(2)
 
-        # Skewness table (first 5)
-        skew_items = list(skew.iloc[:5].items())
-        skew_data = [["Column", "Skewness"]] + [[c, f"{v:.2f}"] for c, v in skew_items]
-        report.add_section("Skewness (first 5 numeric columns)")
-        report.add_table(skew_data, col_widths=[2.5 * inch, 2.5 * inch])
+                # Correlation table (first 3 cols)
+                corr_cols = corr.columns[:3]
+                corr_data = [[""] + list(corr_cols)]
+                for c in corr_cols:
+                    corr_data.append([c] + [f"{corr.loc[c, c2]:.2f}" for c2 in corr_cols])
+                report.add_section("Correlation (first 3 numeric columns)")
+                report.add_table(corr_data)
 
-        # Transformation steps
-        transform_steps = steps.get("transform", [])
-        if transform_steps:
-            report.add_section("Transformation Steps")
-            for i, t in enumerate(transform_steps, start=1):
-                sub = []
-                dropped = t.get("dropped_columns", [])
-                if dropped:
-                    sub.append(f"Dropped: {', '.join(dropped)}")
-                for method, cols in t.get("encoding", {}).items():
-                    if cols:
-                        sub.append(f"Encoding ({method}): {', '.join(cols)}")
-                for method, cols in t.get("scaling", {}).items():
-                    if cols:
-                        sub.append(f"Scaling ({method}): {', '.join(cols)}")
-                for method, cols in t.get("skew_fix", {}).items():
-                    if cols:
-                        sub.append(f"Skew-fix ({method}): {', '.join(cols)}")
-                for method, cols in t.get("balancing", {}).items():
-                    if method != "none":
-                        sub.append(f"Balancing: {method}")
-                report.add_section(f"Step {i}", "\n".join(sub))
+                # Skewness table (first 5)
+                skew_items = list(skew.iloc[:5].items())
+                skew_data = [["Column", "Skewness"]] + [[c, f"{v:.2f}"] for c, v in skew_items]
+                report.add_section("Skewness (first 5 numeric columns)")
+                report.add_table(skew_data, col_widths=[2.5 * inch, 2.5 * inch])
 
-        # Model Training runs
-        train_steps = steps.get("train", [])
-        if train_steps:
-            report.add_section("Model Training & Evaluation")
-            for i, tr in enumerate(train_steps, start=1):
-                model = tr.get("model")
-                params = tr.get("params", tr.get("params_used", {}))
-                report.add_section(f"Run {i}: {model}", f"Parameters: {params}")
+        # Cleaning Summary
+        if include_sections.get("cleaningSummary", True):
+            clean_steps = steps.get("clean", {})
+            if clean_steps:
+                report.add_section("Data Cleaning Steps")
+                if isinstance(clean_steps, dict):
+                    for col, strategy in clean_steps.items():
+                        report.add_section(f"Column: {col}", f"Strategy: {strategy}")
+                elif isinstance(clean_steps, list):
+                    for i, step in enumerate(clean_steps, start=1):
+                        report.add_section(f"Cleaning Step {i}", str(step))
 
-                # Confusion matrix
-                cm = tr.get("confusion_matrix")
-                if cm:
-                    cm_table = [
-                        ["", "Pred 0", "Pred 1"],
-                        ["Actual 0", cm[0][0], cm[0][1]],
-                        ["Actual 1", cm[1][0], cm[1][1]],
-                    ]
-                    report.add_table(cm_table)
+        # Transformation Summary
+        if include_sections.get("transformSummary", True):
+            transform_steps = steps.get("transform", [])
+            if transform_steps:
+                report.add_section("Transformation Steps")
+                for i, t in enumerate(transform_steps, start=1):
+                    sub = []
+                    dropped = t.get("dropped_columns", [])
+                    if dropped:
+                        sub.append(f"Dropped: {', '.join(dropped)}")
+                    for method, cols in t.get("encoding", {}).items():
+                        if cols:
+                            sub.append(f"Encoding ({method}): {', '.join(cols)}")
+                    for method, cols in t.get("scaling", {}).items():
+                        if cols:
+                            sub.append(f"Scaling ({method}): {', '.join(cols)}")
+                    for method, cols in t.get("skew_fix", {}).items():
+                        if cols:
+                            sub.append(f"Skew-fix ({method}): {', '.join(cols)}")
+                    for method, cols in t.get("balancing", {}).items():
+                        if method != "none":
+                            sub.append(f"Balancing: {method}")
+                    report.add_section(f"Step {i}", "\n".join(sub))
 
-                # Metrics
-                metrics = tr.get("metrics", tr.get("evaluation", {}))
-                metrics_data = [["Metric", "Value"]] + [[k, v] for k, v in metrics.items()]
-                report.add_table(metrics_data, col_widths=[2.5 * inch, 2.5 * inch])
+        # Model Evaluation
+        if include_sections.get("modelEvaluation", True):
+            train_steps = steps.get("train", [])
+            if train_steps:
+                report.add_section("Model Training & Evaluation")
+                for i, tr in enumerate(train_steps, start=1):
+                    model = tr.get("model")
+                    params = tr.get("params", tr.get("params_used", {}))
+                    report.add_section(f"Run {i}: {model}", f"Parameters: {params}")
+
+                    # Confusion matrix
+                    cm = tr.get("confusion_matrix")
+                    if cm:
+                        cm_table = [
+                            ["", "Pred 0", "Pred 1"],
+                            ["Actual 0", cm[0][0], cm[0][1]],
+                            ["Actual 1", cm[1][0], cm[1][1]],
+                        ]
+                        report.add_table(cm_table)
+
+                    # Metrics
+                    metrics = tr.get("metrics", tr.get("evaluation", {}))
+                    metrics_data = [["Metric", "Value"]] + [[k, v] for k, v in metrics.items()]
+                    report.add_table(metrics_data, col_widths=[2.5 * inch, 2.5 * inch])
+
+        # Feature Importance
+        if include_sections.get("featureImportance", True):
+            train_steps = steps.get("train", [])
+            if train_steps:
+                for tr in train_steps:
+                    feature_importance = tr.get("feature_importance", [])
+                    if feature_importance:
+                        report.add_section("Feature Importance")
+                        fi_data = [["Feature", "Importance"]]
+                        for item in feature_importance[:10]:  # Top 10
+                            fi_data.append([item.get("feature", ""), f"{item.get('importance', 0):.4f}"])
+                        report.add_table(fi_data, col_widths=[3 * inch, 2 * inch])
+                        break  # Only show for first model with feature importance
+
 
         # build and return path
         report.build()
@@ -100,14 +179,38 @@ def generate_pdf(session_id: str, session_data: dict) -> str:
         raise e
 
 
-def generate_ipynb(session_id: str, session_data: dict) -> str:
-    try:
+def generate_ipynb(session_id: str, session_data: dict, config: Dict[str, Any] = None) -> str:
+    """
+    Generate a runnable Jupyter notebook with executable cells for each pipeline step.
     
+    Args:
+        session_id: Session identifier
+        session_data: Session data from MongoDB
+        config: Export configuration with selected_model
+    
+    Returns:
+        Path to generated notebook file
+    """
+    try:
+        # Extract config
+        if config is None:
+            config = {}
+        selected_model = config.get("selected_model")
+        
+        # Get data from session
         data = session_data.get("data", [])
-        df = pd.DataFrame(data)
+        if not data and "dataset" in session_data:
+            data = session_data["dataset"].get("sample_rows", [])
+        
+        df = pd.DataFrame(data) if data else pd.DataFrame()
 
         meta = session_data.get("meta", {})
         steps = meta.get("steps", {})
+        
+        # Get dataset info
+        dataset_info = session_data.get("dataset", {})
+        file_name = dataset_info.get("file_name", meta.get('filename', 'dataset.csv'))
+        target_column = dataset_info.get("target_column", meta.get('target_column', 'target'))
 
         nb = new_notebook()
         cells = []
@@ -124,13 +227,13 @@ def generate_ipynb(session_id: str, session_data: dict) -> str:
         cells.append(new_code_cell(
             "import pandas as pd\n"
             f"# if you have the original file locally:\n"
-            f"df = pd.read_csv('path/to/{meta.get('filename','dataset.csv')}')\n"
+            f"df = pd.read_csv('path/to/{file_name}')\n"
             "df.head()" 
         ))
 
         cells.append(new_code_cell(
             "# Set your target column name below:\n"
-            f"target_col = {meta.get('target_column', 'target')}  # replace with your target column name\n"
+            f"target_col = '{target_column}'  # replace with your target column name\n"
         ))
         # 2) Cleaning
         clean_steps = steps.get("clean", {})
@@ -242,6 +345,11 @@ def generate_ipynb(session_id: str, session_data: dict) -> str:
         train_steps = steps.get("train", [])
         if train_steps:
             cells.append(new_markdown_cell("## 5. Model Training & Evaluation"))
+            
+            # Filter to selected model if specified
+            if selected_model:
+                train_steps = [tr for tr in train_steps if tr.get("model") == selected_model]
+            
             for i, tr in enumerate(train_steps, start=1):
                 mdl = tr.get("model")
                 params = tr.get("params", tr.get("params_used", {}))

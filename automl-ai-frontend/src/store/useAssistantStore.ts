@@ -1,9 +1,14 @@
 import { create } from 'zustand';
 
+export type StructuredChunk = {
+  type: 'heading' | 'bullet' | 'paragraph' | 'code';
+  text: string;
+};
+
 export type AssistantMessage = {
   id: string;
   role: 'user' | 'assistant';
-  content: string;
+  content: string | StructuredChunk[];
   timestamp: Date;
   quickActions?: QuickAction[];
 };
@@ -18,7 +23,7 @@ interface AssistantState {
   // Messages
   messages: AssistantMessage[];
   addMessage: (message: Omit<AssistantMessage, 'id' | 'timestamp'>) => void;
-  updateLastMessage: (content: string) => void;
+  updateLastMessage: (content: string | StructuredChunk[]) => void;
   clearMessages: () => void;
   
   // Streaming state
