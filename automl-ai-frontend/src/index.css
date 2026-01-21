@@ -224,6 +224,26 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-primary:hover::before {
+  width: 300px;
+  height: 300px;
 }
 
 .btn-primary:hover {
@@ -242,6 +262,10 @@ html, body, #root {
   box-shadow: none;
   cursor: not-allowed;
   transform: none;
+}
+
+.btn-primary:disabled::before {
+  display: none;
 }
 
 /* Button Secondary */
@@ -395,6 +419,20 @@ a:focus-visible {
 
 .pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Glow pulse animation for current step */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--accent-primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 30px var(--accent-primary-glow), 0 0 40px var(--accent-primary-glow);
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
 }
 
 /* ============================================

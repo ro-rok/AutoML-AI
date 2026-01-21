@@ -1,6 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePipelineStore, PipelineStep } from '../store/useStepStore';
 import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import { gsap } from 'gsap';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Step icons (using simple SVG icons)
 const stepIcons: Record<PipelineStep, React.ReactElement> = {
@@ -65,6 +68,57 @@ export default function PipelineSpine() {
   const navigate = useNavigate();
   const location = useLocation();
   const { steps, setCurrentStep, canNavigateToStep } = usePipelineStore();
+  const prefersReducedMotion = useReducedMotion();
+  
+  // Refs for animations
+  const checkmarkRefs = useRef<Record<string, SVGPathElement | null>>({});
+  const lineRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const previousStepsRef = useRef<Record<PipelineStep, { status: string }>>({} as any);
+
+  // Animate checkmark when step completes
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+
+    Object.keys(steps).forEach((stepKey) => {
+      const step = stepKey as PipelineStep;
+      const currentStatus = steps[step].status;
+      const previousStatus = previousStepsRef.current[step]?.status;
+
+      // Animate checkmark when step becomes completed
+      if (currentStatus === 'completed' && previousStatus !== 'completed') {
+        const checkmark = checkmarkRefs.current[step];
+        if (checkmark) {
+          gsap.fromTo(
+            checkmark,
+            { 
+              strokeDasharray: 100,
+              strokeDashoffset: 100,
+              opacity: 0,
+            },
+            {
+              strokeDashoffset: 0,
+              opacity: 1,
+              duration: 0.6,
+              ease: 'power2.out',
+            }
+          );
+        }
+
+        // Animate connecting line
+        const line = lineRefs.current[step];
+        if (line) {
+          gsap.fromTo(
+            line,
+            { scaleY: 0, transformOrigin: 'top' },
+            { scaleY: 1, duration: 0.4, ease: 'power2.out', delay: 0.3 }
+          );
+        }
+      }
+    });
+
+    // Update previous steps
+    previousStepsRef.current = { ...steps };
+  }, [steps, prefersReducedMotion]);
 
   const handleStepClick = (step: PipelineStep) => {
     if (!canNavigateToStep(step)) {
@@ -100,7 +154,7 @@ export default function PipelineSpine() {
                     relative w-12 h-12 rounded-full flex items-center justify-center
                     transition-all duration-fast
                     ${isLocked ? 'bg-bg-interactive text-text-disabled cursor-not-allowed' : ''}
-                    ${isCurrent ? 'bg-accent-primary text-text-primary shadow-glow-primary' : ''}
+                    ${isCurrent ? 'bg-accent-primary text-text-primary glow-pulse' : ''}
                     ${isCompleted && !isCurrent ? 'bg-bg-surface border-2 border-accent-primary text-accent-primary' : ''}
                     ${isError ? 'bg-bg-surface border-2 border-error text-error' : ''}
                     ${!isLocked && !isCurrent && !isCompleted && !isError ? 'bg-bg-surface border-2 border-border-default text-text-secondary hover:border-accent-primary' : ''}
@@ -110,8 +164,14 @@ export default function PipelineSpine() {
                   title={isLocked ? 'Complete previous steps first' : stepLabels[step]}
                 >
                   {isCompleted ? (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                      <path 
+                        ref={(el) => { checkmarkRefs.current[step] = el; }}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 10l3 3 7-7"
+                      />
                     </svg>
                   ) : (
                     stepIcons[step]
@@ -145,10 +205,13 @@ export default function PipelineSpine() {
 
                 {/* Connecting line */}
                 {index < Object.keys(stepLabels).length - 1 && (
-                  <div className={`
-                    w-0.5 h-6
-                    ${isCompleted ? 'bg-accent-primary' : 'bg-border-default'}
-                  `} />
+                  <div 
+                    ref={(el) => { lineRefs.current[step] = el; }}
+                    className={`
+                      w-0.5 h-6 transition-colors duration-300
+                      ${isCompleted ? 'bg-accent-primary' : 'bg-border-default'}
+                    `} 
+                  />
                 )}
               </div>
             );

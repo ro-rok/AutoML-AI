@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { api } from '../api/client';
 import { useSessionStore } from '../store/useSessionStore';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 
 type ColumnStats = {
   mean: number;
@@ -78,6 +79,13 @@ export default function EDAPage() {
   const [error, setError] = useState<string | null>(null);
   const [corrLoading, setCorrLoading] = useState(false);
   const [corrImgUrl, setCorrImgUrl] = useState<string | null>(null);
+
+  // Scroll reveal animations
+  const suggestionsRef = useScrollReveal({ animation: 'fadeUp', duration: 0.6 });
+  const missingValuesRef = useScrollReveal({ animation: 'fadeUp', duration: 0.6 });
+  const numericalSummaryRef = useScrollReveal({ animation: 'fadeUp', duration: 0.6 });
+  const categoricalSummaryRef = useScrollReveal({ animation: 'fadeUp', duration: 0.6, stagger: 0.1 });
+  const correlationRef = useScrollReveal({ animation: 'fadeUp', duration: 0.6 });
 
   // Graph builder state
   const [selCat, setSelCat] = useState<'numeric' | 'categorical' | ''>('');
@@ -258,7 +266,7 @@ export default function EDAPage() {
 
       {/* AI Suggestions */}
       {suggestions.length > 0 && (
-        <div className="mb-6 bg-gradient-to-r from-red-900/20 to-red-800/10 border border-red-500/30 rounded-lg p-4">
+        <div ref={suggestionsRef} className="mb-6 bg-gradient-to-r from-red-900/20 to-red-800/10 border border-red-500/30 rounded-lg p-4">
           <h3 className="text-lg font-semibold mb-2 text-red-400 flex items-center">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -299,7 +307,7 @@ export default function EDAPage() {
           <TabPanel className="space-y-8">
             {/* Missing Values */}
             {Object.keys(eda.missing_values).length > 0 && (
-              <section>
+              <section ref={missingValuesRef}>
                 <h3 className="text-xl font-semibold mb-3 text-red-400">Missing Values</h3>
                 <div className="overflow-x-auto bg-gray-900 rounded-lg">
                   <table className="min-w-full">
@@ -326,7 +334,7 @@ export default function EDAPage() {
 
             {/* Numerical Summary */}
             {numericCols.length > 0 && (
-              <section>
+              <section ref={numericalSummaryRef}>
                 <h3 className="text-xl font-semibold mb-3">Numerical Summary</h3>
                 <div className="overflow-x-auto bg-gray-900 rounded-lg">
                   <table className="min-w-full text-sm">
@@ -368,7 +376,7 @@ export default function EDAPage() {
 
             {/* Categorical Summary */}
             {categoricalCols.length > 0 && (
-              <section>
+              <section ref={categoricalSummaryRef}>
                 <h3 className="text-xl font-semibold mb-3">Categorical Summary</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categoricalCols.map((col) => {
@@ -396,7 +404,7 @@ export default function EDAPage() {
 
             {/* Correlation Heatmap */}
             {eda.correlations.length > 0 && (
-              <section>
+              <section ref={correlationRef}>
                 <h3 className="text-xl font-semibold mb-3">Correlation Heatmap</h3>
                 {corrLoading ? (
                   <div className="flex items-center justify-center h-[400px] bg-gray-900 rounded-lg">

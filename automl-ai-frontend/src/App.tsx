@@ -9,6 +9,7 @@ import { api } from "./api/client"
 import { Analytics } from "@vercel/analytics/react"
 import { PAGE_TRANSITION } from "./utils/motionConstants"
 import { useSessionRestoration } from "./hooks/useSessionRestoration"
+import { useLenis } from "./hooks/useLenis"
 
 import Header from "./components/Header"
 import Footer from "./components/Footer"
@@ -86,6 +87,9 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
+  // Initialize Lenis smooth scrolling
+  useLenis();
+
   const PING_INTERVAL = 25 * 60 * 1000;
   const PING_TIMEOUT = 15 * 1000;
   const PING_THRESHOLD = 500; 

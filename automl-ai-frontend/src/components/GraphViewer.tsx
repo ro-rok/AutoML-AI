@@ -1,6 +1,8 @@
 // src/components/GraphViewer.tsx
 import { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { DURATION, SPRING } from '../utils/motionConstants';
 
 type GraphType = 'correlation' | 'histogram' | 'scatter' | 'confusion_matrix' | 'roc_curve' | 'feature_importance';
 
@@ -55,20 +57,36 @@ export default function GraphViewer({ type, data, title, isModal = false, onClos
 
   if (isModal) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-        <div className="relative w-[90vw] h-[90vh] bg-gray-900 rounded-lg p-6">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white"
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: DURATION.fast }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={SPRING.default}
+            className="relative w-[90vw] h-[90vh] bg-gray-900 rounded-lg p-6"
+            onClick={(e) => e.stopPropagation()}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          {title && <h3 className="text-xl font-semibold mb-4 text-white">{title}</h3>}
-          {content}
-        </div>
-      </div>
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            {title && <h3 className="text-xl font-semibold mb-4 text-white">{title}</h3>}
+            {content}
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
