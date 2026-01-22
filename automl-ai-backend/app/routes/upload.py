@@ -136,7 +136,6 @@ async def upload_dataset(file: UploadFile = File(...)):
         # Validate file type by content sniffing
         if not validate_file_type(contents, file.filename or ''):
             raise invalid_file_format_error(file_type=file.filename or 'unknown')
-            )
         
         # Parse file
         buffer = BytesIO(contents)
