@@ -1,9 +1,11 @@
 # app/routes/aniexplorer.py
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import os, pickle, numpy as np, httpx, asyncio
+import os, pickle, numpy as np, httpx, asyncio, logging
 from pathlib import Path
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 MAL_CLIENT_ID = os.getenv("MAL_CLIENT_ID", "")
@@ -40,37 +42,99 @@ async def get_anime_details(anime_id: int):
       "status,genres,my_list_status,num_episodes,"
       "start_season,rating,pictures,background,media_type"
     )
-    async with httpx.AsyncClient() as client:
-        r = await client.get(url, headers={"X-MAL-CLIENT-ID": MAL_CLIENT_ID})
-    if r.status_code != 200:
-        raise HTTPException(502, "MAL detail fetch failed")
-    return r.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(url, headers={"X-MAL-CLIENT-ID": MAL_CLIENT_ID}, timeout=30.0)
+        if r.status_code != 200:
+            error_msg = f"MAL detail fetch failed for anime_id {anime_id}: {r.status_code}"
+            try:
+                error_detail = r.json()
+                error_msg += f" - {error_detail}"
+            except:
+                error_msg += f" - {r.text[:200]}"
+            logger.error(error_msg)
+            raise HTTPException(502, error_msg)
+        return r.json()
+    except httpx.TimeoutException:
+        error_msg = f"MAL detail fetch timeout for anime_id {anime_id}"
+        logger.error(error_msg)
+        raise HTTPException(502, error_msg)
+    except Exception as e:
+        error_msg = f"MAL detail fetch error for anime_id {anime_id}: {str(e)}"
+        logger.error(error_msg)
+        raise HTTPException(502, error_msg)
 
 @router.post("/find_similar")
 async def find_similar(req: FindSimilarReq):
+    logger.info(f"Searching for anime: {req.anime_name}, media_type: {req.media_type}")
     # 1) search MAL for ID
     search_url = (
       f"https://api.myanimelist.net/v2/anime?"
-      f"q={req.anime_name}&limit=10&fields=media_type,id"
+      f"q={req.anime_name}&limit=10"
     )
-    async with httpx.AsyncClient() as client:
-        r = await client.get(search_url, headers={"X-MAL-CLIENT-ID": MAL_CLIENT_ID})
-    if r.status_code != 200:
-        raise HTTPException(502, "MAL search failed")
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(search_url, headers={"X-MAL-CLIENT-ID": MAL_CLIENT_ID}, timeout=30.0)
+        if r.status_code != 200:
+            error_msg = f"MAL search failed: {r.status_code}"
+            if r.status_code == 400:
+                try:
+                    error_detail = r.json()
+                    error_msg += f" - {error_detail}"
+                except:
+                    error_msg += f" - {r.text[:200]}"
+            logger.error(f"Search error for '{req.anime_name}': {error_msg}")
+            raise HTTPException(502, error_msg)
+    except httpx.TimeoutException:
+        error_msg = f"MAL search timeout for '{req.anime_name}'"
+        logger.error(error_msg)
+        raise HTTPException(502, error_msg)
+    except Exception as e:
+        error_msg = f"MAL search error for '{req.anime_name}': {str(e)}"
+        logger.error(error_msg)
+        raise HTTPException(502, error_msg)
     data = r.json().get("data", [])
     if not data:
         raise HTTPException(404, "Anime not found")
-    # pick by media_type
-    mal_id = next(
-      (node["node"]["id"] for node in data
-       if node["node"]["media_type"].lower()==req.media_type.lower()),
-      data[0]["node"]["id"]
-    )
+    
+    # Check if media_type is in the search response, if not fetch details
+    mal_id = None
+    for node in data:
+        node_data = node.get("node", {})
+        if "media_type" in node_data:
+            if node_data["media_type"].lower() == req.media_type.lower():
+                mal_id = node_data["id"]
+                break
+    
+    # If media_type not in search results or no match found, fetch details for candidates
+    if mal_id is None:
+        # Fetch details for first few results to find matching media_type
+        candidate_ids = [node.get("node", {}).get("id") for node in data[:5] if node.get("node", {}).get("id")]
+        if not candidate_ids:
+            raise HTTPException(404, "No valid anime IDs found in search results")
+        
+        # Fetch details concurrently for candidates
+        detail_tasks = [get_anime_details(anime_id) for anime_id in candidate_ids]
+        detail_results = await asyncio.gather(*detail_tasks, return_exceptions=True)
+        
+        # Find first match by media_type
+        for details in detail_results:
+            if isinstance(details, Exception):
+                continue
+            if details.get("media_type", "").lower() == req.media_type.lower():
+                mal_id = details.get("id")
+                break
+        
+        # If still no match, use first result
+        if mal_id is None:
+            mal_id = candidate_ids[0]
 
     # 2) compute similarity
+    logger.info(f"Computing similarity for anime_id: {mal_id}")
     vec = id_weights.get(mal_id)
     if vec is None:
-        raise HTTPException(404, "Not in model")
+        logger.warning(f"Anime ID {mal_id} not found in model")
+        raise HTTPException(404, f"Anime ID {mal_id} not in model")
     
     # Convert to numpy array for efficient computation
     weight_matrix = np.array(list(id_weights.values()))
