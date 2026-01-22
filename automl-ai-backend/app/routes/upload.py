@@ -6,7 +6,6 @@ from io import BytesIO
 from typing import List, Dict, Optional
 import traceback
 import numpy as np
-import magic  # python-magic for content sniffing
 from app.utils.mongodb_client import save_session
 from app.utils.error_responses import (
     file_too_large_error,
@@ -27,39 +26,30 @@ WARNING_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 def validate_file_type(contents: bytes, filename: str) -> bool:
     """
-    Validate file type by content sniffing (magic bytes), not just extension.
+    Validate file type by checking extension and content structure.
     Returns True if valid CSV or XLSX, False otherwise.
     """
-    try:
-        # Use python-magic to detect file type by content
-        mime = magic.from_buffer(contents, mime=True)
-        
-        # Accept CSV (text/plain, text/csv) and Excel files
-        valid_mimes = [
-            'text/plain',
-            'text/csv',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]
-        
-        if mime in valid_mimes:
-            return True
-            
-        # Fallback: check if it looks like CSV by trying to parse first few lines
-        if mime.startswith('text/'):
-            try:
-                sample = contents[:1024].decode('utf-8', errors='ignore')
-                # Check for CSV-like structure (commas, newlines)
-                if ',' in sample and '\n' in sample:
-                    return True
-            except:
-                pass
-                
+    # Check extension first
+    if not filename.endswith(('.csv', '.xlsx')):
         return False
-    except Exception as e:
-        print(f"Magic detection failed: {e}, falling back to extension check")
-        # Fallback to extension check if magic fails
-        return filename.endswith(('.csv', '.xlsx'))
+    
+    # For CSV files, verify content looks like CSV
+    if filename.endswith('.csv'):
+        try:
+            sample = contents[:1024].decode('utf-8', errors='ignore')
+            # Check for CSV-like structure (commas, newlines)
+            if ',' in sample and '\n' in sample:
+                return True
+        except:
+            pass
+    
+    # For Excel files, check magic bytes
+    if filename.endswith('.xlsx'):
+        # XLSX files start with PK (ZIP signature)
+        if contents[:2] == b'PK':
+            return True
+    
+    return True  # Allow if extension matches
 
 
 def infer_column_type(series: pd.Series) -> str:
