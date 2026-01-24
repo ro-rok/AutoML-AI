@@ -1,8 +1,10 @@
 // src/pages/EDAPage.tsx
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { api } from '../api/client';
 import { useSessionStore } from '../store/useSessionStore';
+import { usePipelineStore } from '../store/useStepStore';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import OptimizedImage from '../components/OptimizedImage';
 
@@ -75,6 +77,8 @@ function StatsSkeleton() {
 
 export default function EDAPage() {
   const { sessionId } = useSessionStore();
+  const { completeStep } = usePipelineStore();
+  const navigate = useNavigate();
   const [eda, setEda] = useState<EDAResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -437,6 +441,28 @@ export default function EDAPage() {
                     Failed to load heatmap.
                   </p>
                 )}
+                
+                {/* Continue to Clean Button */}
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => {
+                      completeStep('eda');
+                      navigate('/clean');
+                    }}
+                    className="
+                      py-3 px-8 
+                      bg-red-500 hover:bg-red-600 
+                      text-white font-semibold text-lg rounded-lg
+                      transition-all duration-200
+                      hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]
+                      hover:-translate-y-0.5
+                      focus:outline-none focus:ring-3 focus:ring-red-500/50
+                      flex items-center gap-2
+                    "
+                  >
+                    Continue to Clean →
+                  </button>
+                </div>
               </section>
             )}
           </TabPanel>

@@ -3,10 +3,12 @@ import { useState, useEffect } from 'react'
 import { FiDownload, FiCheck } from 'react-icons/fi'
 import { api } from '../api/client'
 import { useSessionStore } from '../store/useSessionStore'
+import { usePipelineStore } from '../store/useStepStore'
 import { motion } from 'framer-motion'
 
 export default function ExportPage() {
   const { sessionId } = useSessionStore()
+  const { completeStep } = usePipelineStore()
   const [loadingExport, setLoadingExport] = useState(false)
   const [exportProgress, setExportProgress] = useState<string>('')
   const [exportType, setExportType] = useState<'pdf' | 'notebook' | null>(null)
@@ -52,6 +54,9 @@ export default function ExportPage() {
       a.click()
       a.remove()
       URL.revokeObjectURL(url)
+      
+      // Mark export as completed
+      completeStep('export')
       
       setTimeout(() => {
         setExportProgress('')

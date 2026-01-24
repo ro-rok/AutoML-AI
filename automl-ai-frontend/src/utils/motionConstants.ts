@@ -10,11 +10,19 @@ export const DURATION = {
   slow: 0.8,      // 800ms - Page transitions, complex sequences
 } as const;
 
-// Easing Standards
+// Easing Standards (CSS for CSS transitions)
 export const EASING = {
-  easeOut: 'cubic-bezier(0, 0, 0.2, 1)',        // Entrances, reveals
-  easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',    // Transitions, movements
-  linear: 'linear',                              // Continuous animations
+  easeOut: 'cubic-bezier(0, 0, 0.2, 1)',        // Entrances, reveals (CSS)
+  easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',    // Transitions, movements (CSS)
+  linear: 'linear',                              // Continuous animations (CSS)
+} as const;
+
+// Framer Motion Easing (for Framer Motion animations)
+export const FRAMER_EASING = {
+  easeOut: [0, 0, 0.2, 1] as [number, number, number, number],        // cubic-bezier array
+  easeInOut: [0.4, 0, 0.2, 1] as [number, number, number, number],   // cubic-bezier array
+  easeOutString: 'easeOut' as const,                                  // Named easing
+  easeInOutString: 'easeInOut' as const,                              // Named easing
 } as const;
 
 // GSAP Easing (for GSAP animations)
@@ -92,23 +100,30 @@ export const VARIANTS = {
   },
 } as const;
 
-// Page Transition Variants
+// Page Transition Variants (Cinematic)
 export const PAGE_TRANSITION = {
-  initial: { opacity: 0, y: 20 },
+  initial: { 
+    opacity: 0, 
+    y: 20,
+    scale: 0.99,
+  },
   animate: { 
     opacity: 1, 
     y: 0,
+    scale: 1,
     transition: {
       duration: DURATION.medium,
-      ease: EASING.easeOut,
+      ease: FRAMER_EASING.easeOut,
+      staggerChildren: 0.05,
     },
   },
   exit: { 
     opacity: 0, 
-    y: -20,
+    y: -10,
+    scale: 0.99,
     transition: {
       duration: DURATION.fast,
-      ease: EASING.easeOut,
+      ease: FRAMER_EASING.easeOut,
     },
   },
 } as const;

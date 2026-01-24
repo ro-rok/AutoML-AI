@@ -1,15 +1,19 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { FiUploadCloud, FiLoader, FiAlertCircle, FiCheckCircle, FiX } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
+import { gsap } from 'gsap'
 import { api } from '../api/client'
 import { useSessionStore } from '../store/useSessionStore'
+import { usePipelineStore } from '../store/useStepStore'
 import SchemaTable from '../components/SchemaTable'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
 const WARNING_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
 export default function UploadPage() {
   const navigate = useNavigate()
+  const { completeStep } = usePipelineStore()
   const { 
     setSessionId, 
     setPreview, 
@@ -35,6 +39,9 @@ export default function UploadPage() {
   const [suggestedTarget, setSuggestedTarget] = useState<string | null>(null)
   const [uploadComplete, setUploadComplete] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropzoneRef = useRef<HTMLDivElement>(null)
+  const schemaRef = useRef<HTMLDivElement>(null)
+  const prefersReducedMotion = useReducedMotion()
 
 
   const formatBytes = (bytes: number): string => {
@@ -98,20 +105,41 @@ export default function UploadPage() {
     }
   }, [])
 
-  const handleUpload = async () => {
-    if (!file) return
+  const handleUpload = async (fileToUpload?: File) => {
+    const fileToUse = fileToUpload || file
+    if (!fileToUse) {
+      console.warn('[Upload] No file selected')
+      return
+    }
     
     setLoading(true)
     setError(null)
-    setUploadProgress({ loaded: 0, total: file.size, speed: 0 })
+    setUploadProgress({ loaded: 0, total: fileToUse.size, speed: 0 })
 
     const startTime = Date.now()
     let lastLoaded = 0
     let lastTime = startTime
 
+    // Log upload start
+    if (import.meta.env.DEV) {
+      console.log('[Upload] Starting upload', {
+        filename: fileToUse.name,
+        size: fileToUse.size,
+        type: fileToUse.type,
+        lastModified: new Date(fileToUse.lastModified).toISOString(),
+      })
+    }
+
     try {
       const form = new FormData()
-      form.append('file', file)
+      form.append('file', fileToUse)
+
+      if (import.meta.env.DEV) {
+        console.log('[Upload] FormData created', {
+          hasFile: form.has('file'),
+          fileKey: 'file',
+        })
+      }
 
       const res = await api.post('/upload/file', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -132,6 +160,17 @@ export default function UploadPage() {
           }
         },
       })
+
+      if (import.meta.env.DEV) {
+        console.log('[Upload] Upload successful', {
+          sessionId: res.data.session_id,
+          rowCount: res.data.row_count,
+          columnCount: res.data.column_count,
+          schemaLength: res.data.schema?.length,
+          suggestedTarget: res.data.suggested_target,
+          duration: Date.now() - startTime,
+        })
+      }
 
       // Store session data
       setSessionId(res.data.session_id)
@@ -154,7 +193,7 @@ export default function UploadPage() {
       }))
       
       setSchema(transformedSchema)
-      setFileMetadata(file.name, file.size)
+      setFileMetadata(fileToUse.name, fileToUse.size)
       
       // Set suggested target
       if (res.data.suggested_target) {
@@ -165,9 +204,64 @@ export default function UploadPage() {
       // Mark upload as complete
       setUploadComplete(true)
       setUploadProgress(null)
+
+      // Animate schema reveal
+      if (!prefersReducedMotion && schemaRef.current) {
+        gsap.fromTo(
+          schemaRef.current,
+          {
+            opacity: 0,
+            y: 50,
+            scale: 0.95,
+          },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.6,
+            ease: 'back.out(1.7)',
+            delay: 0.2,
+          }
+        )
+      }
     } catch (err: any) {
-      console.error('Upload error:', err)
-      const errorMessage = err.response?.data?.detail || err.message || 'Upload failed'
+      const duration = Date.now() - startTime
+      console.error('[Upload] Upload failed', {
+        error: err,
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        duration,
+        filename: fileToUse.name,
+        fileSize: fileToUse.size,
+      })
+
+      // Enhanced error message
+      let errorMessage = 'Upload failed'
+      
+      if (err.message) {
+        errorMessage = err.message
+      } else if (err.response?.data?.detail) {
+        errorMessage = typeof err.response.data.detail === 'string' 
+          ? err.response.data.detail 
+          : JSON.stringify(err.response.data.detail)
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
+        errorMessage = 'Network error. Please check if the backend is running at http://localhost:8000'
+      } else if (err.response?.status === 413) {
+        errorMessage = 'File too large. Maximum size is 100MB.'
+      } else if (err.response?.status === 415) {
+        errorMessage = 'Unsupported file type. Please upload CSV or XLSX files.'
+      } else if (err.response?.status === 422) {
+        errorMessage = 'Validation error. Please check your file format.'
+      } else if (err.response?.status === 429) {
+        errorMessage = 'Too many requests. Please wait a moment and try again.'
+      } else if (err.response?.status === 504) {
+        errorMessage = 'Request timeout. Try reducing your dataset size.'
+      }
+
       setError(errorMessage)
       setUploadProgress(null)
     } finally {
@@ -201,13 +295,15 @@ export default function UploadPage() {
 
             {/* Upload Zone */}
             <div
+              ref={dropzoneRef}
               className={`
                 relative border-2 border-dashed rounded-xl p-12 transition-all duration-300
                 ${dragActive 
-                  ? 'border-red-500 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.3)]' 
-                  : 'border-gray-700 bg-gray-900/50 hover:border-gray-600'
+                  ? 'border-red-500 bg-red-500/10 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-[1.02]' 
+                  : 'border-gray-700 bg-gray-900/50 hover:border-gray-600 hover:bg-gray-900/70'
                 }
                 ${loading ? 'pointer-events-none opacity-60' : 'cursor-pointer'}
+                ${!prefersReducedMotion ? 'glow-interactive' : ''}
               `}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -352,16 +448,23 @@ export default function UploadPage() {
                     setError(null)
                     try {
                       const response = await fetch(`/sample/${filename}`)
+                      if (!response.ok) {
+                        throw new Error(`Failed to fetch sample: ${response.statusText}`)
+                      }
                       const blob = await response.blob()
                       const sampleFile = new File([blob], filename, { type: 'text/csv' })
-                      handleFileSelect(sampleFile)
-                      // Auto-upload sample
-                      setTimeout(() => {
+                      
+                      // Validate the file first
+                      if (validateFile(sampleFile)) {
                         setFile(sampleFile)
-                        handleUpload()
-                      }, 100)
+                        // Auto-upload sample - pass file directly to avoid state timing issues
+                        await handleUpload(sampleFile)
+                      } else {
+                        setLoading(false)
+                      }
                     } catch (err: any) {
-                      setError('Failed to load sample dataset: ' + err.message)
+                      console.error('[Upload] Sample dataset error:', err)
+                      setError('Failed to load sample dataset: ' + (err.message || 'Unknown error'))
                       setLoading(false)
                     }
                   }}
@@ -383,16 +486,17 @@ export default function UploadPage() {
         ) : (
           <>
             {/* Schema View */}
-            <div className="mb-8">
+            <div ref={schemaRef} className="mb-8">
               <button
                 onClick={() => {
                   setUploadComplete(false)
                   setFile(null)
                   setSchema([])
                 }}
-                className="text-gray-400 hover:text-white transition-colors mb-4"
+                className="text-gray-400 hover:text-white transition-colors mb-4 flex items-center gap-2 group"
               >
-                ← Upload different file
+                <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                Upload different file
               </button>
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
                 Schema Detected
@@ -402,17 +506,22 @@ export default function UploadPage() {
               </p>
             </div>
 
-            <SchemaTable
-              schema={schema}
-              targetColumn={targetColumn}
-              onTargetColumnChange={setTargetColumn}
-              suggestedTarget={suggestedTarget}
-            />
+            <div ref={schemaRef}>
+              <SchemaTable
+                schema={schema}
+                targetColumn={targetColumn}
+                onTargetColumnChange={setTargetColumn}
+                suggestedTarget={suggestedTarget}
+              />
+            </div>
 
             {/* Continue Button */}
             <div className="mt-8 flex gap-4">
               <button
-                onClick={() => navigate('/eda')}
+                onClick={() => {
+                  completeStep('upload');
+                  navigate('/eda');
+                }}
                 disabled={!targetColumn}
                 className="
                   flex-1 py-4 px-6 

@@ -6,7 +6,8 @@ import { useSessionStore } from '../store/useSessionStore'
 import { useAssistantStore, type StructuredChunk } from '../store/useAssistantStore'
 import gsap from 'gsap'
 import { useStepStore } from '../store/useStepStore'
-import backgroundImage from '../assets/AI-Robot.webp'
+import backgroundImage from '../assets/bg2.webp'
+import { BASE_URL } from '../api/client'
 
 function formatResponseChunks(raw: string): StructuredChunk[] {
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
@@ -81,8 +82,7 @@ export default function ChatAssistant() {
     abortControllerRef.current = new AbortController()
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-      const response = await fetch(`${API_BASE}/groq/suggest`, {
+      const response = await fetch(`${BASE_URL}/groq/suggest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

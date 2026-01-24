@@ -1,8 +1,10 @@
 // src/pages/ResultsPage.tsx
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FiCheckCircle, FiAlertCircle, FiMaximize2, FiArrowRight } from 'react-icons/fi'
 import { api } from '../api/client'
 import { useSessionStore } from '../store/useSessionStore'
+import { usePipelineStore } from '../store/useStepStore'
 import { useGraphStore } from '../store/useGraphStore'
 import * as echarts from 'echarts'
 
@@ -25,6 +27,8 @@ interface TrainingResult {
 
 export default function ResultsPage() {
   const { sessionId } = useSessionStore()
+  const { completeStep } = usePipelineStore()
+  const navigate = useNavigate()
   const { addGraph } = useGraphStore()
   
   const [results, setResults] = useState<TrainingResult[]>([])
@@ -367,13 +371,16 @@ export default function ResultsPage() {
             Selected model: <span className="text-red-500 font-semibold">{selectedResult.model_name}</span>
           </p>
           <div className="flex space-x-4">
-            <a
-              href="/export"
-              className="px-6 py-3 bg-red-500 hover:bg-red-600 rounded-lg font-semibold inline-flex items-center space-x-2"
+            <button
+              onClick={() => {
+                completeStep('results');
+                navigate('/export');
+              }}
+              className="px-6 py-3 bg-red-500 hover:bg-red-600 rounded-lg font-semibold inline-flex items-center space-x-2 transition-all duration-200 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:-translate-y-0.5"
             >
               <span>Continue to Export</span>
               <FiArrowRight />
-            </a>
+            </button>
           </div>
         </div>
       </div>

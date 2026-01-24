@@ -1,7 +1,9 @@
 // src/pages/TransformPage.tsx
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useSessionStore } from '../store/useSessionStore';
+import { usePipelineStore } from '../store/useStepStore';
 
 interface TransformOperation {
   type: string;
@@ -18,6 +20,8 @@ interface TransformResult {
 
 export default function TransformPage() {
   const { sessionId } = useSessionStore();
+  const { completeStep } = usePipelineStore();
+  const navigate = useNavigate();
 
   // Available columns from EDA
   const [numCols, setNumCols] = useState<string[]>([]);
@@ -45,6 +49,7 @@ export default function TransformPage() {
   // Result and loading state
   const [result, setResult] = useState<TransformResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState('skew');
 
   // Fetch columns and class distribution on mount
@@ -125,6 +130,7 @@ export default function TransformPage() {
     if (!canApply()) return;
     
     setLoading(true);
+    setError(null);
     try {
       const operations = buildOperations();
       
@@ -144,8 +150,10 @@ export default function TransformPage() {
       setScaleCols([]);
       setBalMethod(null);
       setDropCols([]);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Transform failed:', e);
+      const errorMessage = e.response?.data?.detail || e.message || 'Failed to apply transformations. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -356,6 +364,27 @@ export default function TransformPage() {
         )}
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div className="mt-6 max-w-6xl mx-auto bg-red-900/20 border border-red-500/50 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <h4 className="text-red-400 font-semibold mb-1">Transformation Failed</h4>
+              <p className="text-red-300 text-sm">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="mt-2 text-red-400 hover:text-red-300 text-sm underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Apply Button */}
       <div className="mt-6 sm:mt-8 max-w-6xl mx-auto">
         <button
@@ -405,6 +434,28 @@ export default function TransformPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          
+          {/* Continue to Train Button */}
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => {
+                completeStep('transform');
+                navigate('/train');
+              }}
+              className="
+                py-3 px-8 
+                bg-red-500 hover:bg-red-600 
+                text-white font-semibold text-lg rounded-lg
+                transition-all duration-200
+                hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]
+                hover:-translate-y-0.5
+                focus:outline-none focus:ring-3 focus:ring-red-500/50
+                flex items-center gap-2
+              "
+            >
+              Continue to Train →
+            </button>
           </div>
         </section>
       )}

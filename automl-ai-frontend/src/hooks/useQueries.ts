@@ -16,7 +16,7 @@ export function useSessionState(sessionId: string | null) {
     queryKey: QUERY_KEYS.session(sessionId || ''),
     queryFn: async () => {
       if (!sessionId) return null;
-      const response = await api.get(`/session/state?sessionId=${sessionId}`);
+      const response = await api.get(`/session/state?session_id=${sessionId}`);
       return response.data;
     },
     enabled: !!sessionId,

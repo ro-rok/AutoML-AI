@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { useSessionStore } from '../store/useSessionStore';
+import { usePipelineStore } from '../store/useStepStore';
 import { useNavigate } from 'react-router-dom';
 
 interface CleaningOperation {
@@ -19,6 +20,7 @@ interface PreviewDiff {
 
 export default function CleanPage() {
   const { sessionId } = useSessionStore();
+  const { completeStep } = usePipelineStore();
   const navigate = useNavigate();
 
   // State
@@ -106,7 +108,8 @@ export default function CleanPage() {
         idempotency_key: idempotencyKey,
       });
 
-      // Navigate to next step (transform)
+      // Mark clean as completed and navigate to next step
+      completeStep('clean');
       navigate('/transform');
     } catch (err: any) {
       console.error('Failed to apply cleaning', err);
@@ -168,7 +171,10 @@ export default function CleanPage() {
               Your dataset is clean and ready for transformation.
             </p>
             <button
-              onClick={() => navigate('/transform')}
+              onClick={() => {
+                completeStep('clean');
+                navigate('/transform');
+              }}
               className="px-6 py-3 bg-red-500 hover:bg-red-600 rounded-lg font-semibold transition-colors"
             >
               Continue to Transform

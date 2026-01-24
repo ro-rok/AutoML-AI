@@ -1,8 +1,8 @@
 // src/components/PipelineNavigator.tsx
-import React, { useRef, useLayoutEffect } from 'react'
+import React, { useRef, useLayoutEffect, useEffect } from 'react'
 import { useWindowSize } from 'react-use'
 import { useSwipeable } from 'react-swipeable'
-import { useStepStore } from '../store/useStepStore'
+import { useStepStore, PipelineStep } from '../store/useStepStore'
 import gsap from 'gsap'
 import {
   FiUploadCloud,
@@ -60,37 +60,84 @@ function WavyArrow() {
 export default function PipelineNavigator() {
   const { width, height } = useWindowSize()
   const isMobile = width < 768
-  const current = useStepStore((state: any) => state.currentStep)
-  const setStep = useStepStore((state: any) => state.setStep)
+  const currentStep = useStepStore((state: any) => state.currentStep)
+  const setCurrentStep = useStepStore((state: any) => state.setCurrentStep)
+  const steps = useStepStore((state: any) => state.steps)
+  
+  // Find current step index
+  const current = STEPS.findIndex(s => s.key === currentStep)
+  const currentIndex = current >= 0 ? current : 0
+  
+  // Refs for scrolling
+  const desktopScrollContainerRef = useRef<HTMLDivElement>(null)
+  const stepRefs = useRef<(HTMLDivElement | null)[]>([])
+  
+  // Auto-scroll to current step on desktop
+  useEffect(() => {
+    if (isMobile || !desktopScrollContainerRef.current) return
+    
+    const currentStepElement = stepRefs.current[currentIndex]
+    if (!currentStepElement) return
+    
+    const container = desktopScrollContainerRef.current
+    const containerRect = container.getBoundingClientRect()
+    const elementRect = currentStepElement.getBoundingClientRect()
+    
+    const elementLeft = elementRect.left - containerRect.left
+    const elementRight = elementRect.right - containerRect.right
+    
+    if (elementLeft < 0 || elementRight > containerRect.width) {
+      currentStepElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      })
+    }
+  }, [currentIndex, isMobile])
+  
+  const handleSetStep = (index: number) => {
+    if (index >= 0 && index < STEPS.length) {
+      setCurrentStep(STEPS[index].key as PipelineStep)
+    }
+  }
 
   // DESKTOP: apply pipeline-bg here
   if (!isMobile) {
     return (
-      <div className="w-full h-full flex items-center justify-center overflow-auto pipeline-bg">
-        <div className="absolute inset-0 flex flex-row items-center">
+      <div 
+        ref={desktopScrollContainerRef}
+        className="w-full h-full flex items-center justify-center overflow-x-auto overflow-y-hidden pipeline-bg scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent hover:scrollbar-thumb-red-500"
+      >
+        <div className="flex flex-row items-center min-w-max px-4">
           {STEPS.map((step, i) => {
-            const dist = Math.abs(i - current)
+            const dist = Math.abs(i - currentIndex)
             const ratio = dist === 0 ? 0.8 : dist === 1 ? 0.4 : 0.2
+            const stepStatus = steps[step.key as PipelineStep]?.status || 'locked'
+            const isCompleted = stepStatus === 'completed'
+            const prevStep = i > 0 ? STEPS[i - 1] : null
+            const prevStepCompleted = prevStep ? (steps[prevStep.key as PipelineStep]?.status === 'completed') : false
+            const shouldShowArrow = isCompleted || prevStepCompleted
 
             return (
               <React.Fragment key={step.key}>
                 <div
-                  onClick={() => setStep(i)}
+                  ref={(el) => { stepRefs.current[i] = el }}
+                  onClick={() => handleSetStep(i)}
                   className={`
                     flex flex-col bg-black/50 border rounded-lg shadow-lg
                     transition-all duration-500 ease-out cursor-pointer
-                    ${i === current ? 'border-red-500' : 'border-gray-700'}
+                    ${i === currentIndex ? 'border-red-500' : 'border-gray-700'}
                   `}
                   style={{
-                    flexGrow: i === current ? 4 : (Math.abs(i - current) === 1 ? 2 : 1),
+                    flexGrow: i === currentIndex ? 4 : (Math.abs(i - currentIndex) === 1 ? 2 : 1),
                     flexBasis: 0,
                     flexShrink: 1,
                     height: height * ratio,
                     margin: '0 8px',
-                    overflow: i === current ? 'auto' : 'hidden',
+                    overflow: i === currentIndex ? 'auto' : 'hidden',
                   }}
                 >
-                  {i === current
+                  {i === currentIndex
                     ? <div className="p-4 flex-1"><step.Component /></div>
                     : <div className="flex-1 flex flex-col items-center justify-center p-4">
                         <step.Icon className="w-8 h-8 text-red-500 mb-2" />
@@ -98,7 +145,11 @@ export default function PipelineNavigator() {
                       </div>
                   }
                 </div>
-                {i < STEPS.length - 1 && <div className="flex items-center"><WavyArrow/></div>}
+                {i < STEPS.length - 1 && (
+                  <div className="flex items-center">
+                    {shouldShowArrow ? <WavyArrow/> : <div className="w-8 h-0.5 bg-gray-700" />}
+                  </div>
+                )}
               </React.Fragment>
             )
           })}
@@ -108,10 +159,10 @@ export default function PipelineNavigator() {
   }
 
   // MOBILE: unchanged
-  const StepComponent = STEPS[current].Component
+  const StepComponent = STEPS[currentIndex]?.Component || STEPS[0].Component
   const swipeHandlers = useSwipeable({
-    onSwipedLeft:  () => current < STEPS.length - 1 && setStep(current + 1),
-    onSwipedRight: () => current > 0               && setStep(current - 1),
+    onSwipedLeft:  () => currentIndex < STEPS.length - 1 && handleSetStep(currentIndex + 1),
+    onSwipedRight: () => currentIndex > 0               && handleSetStep(currentIndex - 1),
     trackTouch:   true,
     trackMouse:    false,
   })
@@ -126,13 +177,13 @@ export default function PipelineNavigator() {
         <StepComponent />
       </div>
       <div className="fixed bottom-10 left-0 w-full bg-gray-800 p-3 flex justify-between items-center">
-        <button onClick={() => current > 0 && setStep(current - 1)} className="text-red-500">
+        <button onClick={() => currentIndex > 0 && handleSetStep(currentIndex - 1)} className="text-red-500">
           <FiChevronLeft size={24} />
         </button>
         <span className="text-red-500 font-semibold">
-          {STEPS[current].label} ({current + 1}/{STEPS.length})
+          {STEPS[currentIndex]?.label || STEPS[0].label} ({currentIndex + 1}/{STEPS.length})
         </span>
-        <button onClick={() => current < STEPS.length - 1 && setStep(current + 1)} className="text-red-500">
+        <button onClick={() => currentIndex < STEPS.length - 1 && handleSetStep(currentIndex + 1)} className="text-red-500">
           <FiChevronRight size={24} />
         </button>
       </div>

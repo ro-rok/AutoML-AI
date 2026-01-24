@@ -8,11 +8,13 @@ from datetime import datetime
 from app.utils.mongodb_client import (
     get_session,
     get_dataset,
+    save_dataset,
     save_training_results,
     get_training_results,
 )
 from app.utils.models import train_and_evaluate, MODEL_MAP, CLASSIFICATION_MODELS
 from app.utils.logger import log, log_operation, job_id_var
+from app.routes.upload import session_store
 import pandas as pd
 import numpy as np
 import traceback
@@ -66,13 +68,30 @@ def run_training_job(job_id: str, session_id: str, config: TrainingConfig):
         if not session:
             raise Exception("Session not found")
         
+        # Try to get dataset from MongoDB first, then fallback to in-memory store
         dataset = get_dataset(session_id)
-        if not dataset:
+        df = None
+        
+        if dataset:
+            # Dataset found in MongoDB
+            df = pd.DataFrame(dataset)
+            log.info(f"Dataset loaded from MongoDB: {len(df)} rows, {len(df.columns)} columns")
+        elif session_id in session_store and "data" in session_store[session_id]:
+            # Fallback to in-memory store
+            df = session_store[session_id]["data"].copy()
+            log.info(f"Dataset loaded from in-memory store: {len(df)} rows, {len(df.columns)} columns")
+            
+            # Save to MongoDB for future use
+            try:
+                dataset_dict = df.replace({np.nan: None}).to_dict(orient="records")
+                save_dataset(session_id, dataset_dict)
+                log.info("Dataset saved to MongoDB for future use")
+            except Exception as e:
+                log.warning(f"Failed to save dataset to MongoDB: {e}")
+        else:
             raise Exception("Dataset not found. Please complete upload and preprocessing steps first.")
         
-        # Convert dataset to DataFrame
-        df = pd.DataFrame(dataset)
-        log.info(f"Dataset loaded: {len(df)} rows, {len(df.columns)} columns")
+        log.info(f"Dataset ready: {len(df)} rows, {len(df.columns)} columns")
         
         # Get target column
         target_column = session.get("target_column")

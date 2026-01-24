@@ -64,18 +64,63 @@ const stepRoutes: Record<PipelineStep, string> = {
   export: '/export',
 };
 
+const stepOrder: PipelineStep[] = ['upload', 'eda', 'clean', 'transform', 'train', 'results', 'export'];
+
 export default function PipelineSpine() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { steps, setCurrentStep, canNavigateToStep } = usePipelineStore();
+  const { steps, setCurrentStep, canNavigateToStep, currentStep } = usePipelineStore();
   const prefersReducedMotion = useReducedMotion();
   
-  // Refs for animations
+  // Refs for animations and scrolling
   const checkmarkRefs = useRef<Record<string, SVGPathElement | null>>({});
   const lineRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const stepButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const stepContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const previousStepsRef = useRef<Record<PipelineStep, { status: string }>>({} as any);
+  const previousCurrentStepRef = useRef<PipelineStep | null>(null);
+  const desktopScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const mobileScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Animate checkmark when step completes
+  // Auto-scroll to current step
+  useEffect(() => {
+    const currentStepElement = stepContainerRefs.current[currentStep];
+    if (!currentStepElement) return;
+
+    const scrollContainer = desktopScrollContainerRef.current || mobileScrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const elementRect = currentStepElement.getBoundingClientRect();
+    
+    // Check if element is visible in container
+    const isVertical = scrollContainer === desktopScrollContainerRef.current;
+    
+    if (isVertical) {
+      const elementTop = elementRect.top - containerRect.top;
+      const elementBottom = elementRect.bottom - containerRect.bottom;
+      
+      if (elementTop < 0 || elementBottom > 0) {
+        currentStepElement.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'center',
+        });
+      }
+    } else {
+      const elementLeft = elementRect.left - containerRect.left;
+      const elementRight = elementRect.right - containerRect.right;
+      
+      if (elementLeft < 0 || elementRight > 0) {
+        currentStepElement.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        });
+      }
+    }
+  }, [currentStep, prefersReducedMotion]);
+
+  // Enhanced animations for step state changes
   useEffect(() => {
     if (prefersReducedMotion) return;
 
@@ -83,6 +128,28 @@ export default function PipelineSpine() {
       const step = stepKey as PipelineStep;
       const currentStatus = steps[step].status;
       const previousStatus = previousStepsRef.current[step]?.status;
+      const stepButton = stepButtonRefs.current[step];
+
+      // Animate step unlock (locked -> available)
+      if (currentStatus !== 'locked' && previousStatus === 'locked') {
+        if (stepButton) {
+          gsap.fromTo(
+            stepButton,
+            {
+              scale: 0.8,
+              opacity: 0.5,
+              rotation: -180,
+            },
+            {
+              scale: 1,
+              opacity: 1,
+              rotation: 0,
+              duration: 0.6,
+              ease: 'back.out(1.7)',
+            }
+          );
+        }
+      }
 
       // Animate checkmark when step becomes completed
       if (currentStatus === 'completed' && previousStatus !== 'completed') {
@@ -94,31 +161,70 @@ export default function PipelineSpine() {
               strokeDasharray: 100,
               strokeDashoffset: 100,
               opacity: 0,
+              scale: 0,
             },
             {
               strokeDashoffset: 0,
               opacity: 1,
-              duration: 0.6,
-              ease: 'power2.out',
+              scale: 1,
+              duration: 0.8,
+              ease: 'back.out(1.7)',
             }
           );
         }
 
-        // Animate connecting line
+        // Animate connecting line with glow effect
         const line = lineRefs.current[step];
         if (line) {
           gsap.fromTo(
             line,
-            { scaleY: 0, transformOrigin: 'top' },
-            { scaleY: 1, duration: 0.4, ease: 'power2.out', delay: 0.3 }
+            { 
+              scaleY: 0, 
+              transformOrigin: 'top',
+              backgroundColor: 'var(--border-default)',
+            },
+            { 
+              scaleY: 1, 
+              duration: 0.5, 
+              ease: 'power2.out', 
+              delay: 0.3,
+              backgroundColor: 'var(--accent-primary)',
+            }
           );
+        }
+
+        // Pulse animation for completed step
+        if (stepButton) {
+          gsap.to(stepButton, {
+            boxShadow: '0 0 20px var(--accent-primary-glow)',
+            duration: 0.3,
+            yoyo: true,
+            repeat: 1,
+            ease: 'power2.inOut',
+          });
+        }
+      }
+
+      // Animate current step highlight (when step becomes the current step)
+      const isCurrent = step === currentStep;
+      const wasCurrent = step === previousCurrentStepRef.current;
+      if (isCurrent && !wasCurrent) {
+        if (stepButton) {
+          gsap.to(stepButton, {
+            scale: 1.1,
+            duration: 0.3,
+            ease: 'power2.out',
+            yoyo: true,
+            repeat: 1,
+          });
         }
       }
     });
 
-    // Update previous steps
+    // Update previous steps and current step
     previousStepsRef.current = { ...steps };
-  }, [steps, prefersReducedMotion]);
+    previousCurrentStepRef.current = currentStep;
+  }, [steps, currentStep, prefersReducedMotion]);
 
   const handleStepClick = (step: PipelineStep) => {
     if (!canNavigateToStep(step)) {
@@ -135,7 +241,10 @@ export default function PipelineSpine() {
   return (
     <>
       {/* Desktop: Vertical sidebar */}
-      <div className="hidden lg:block fixed left-0 top-20 bottom-0 w-24 bg-bg-elevated border-r border-border-default z-40">
+      <div 
+        ref={desktopScrollContainerRef}
+        className="hidden lg:block fixed left-0 top-20 bottom-0 w-24 bg-bg-elevated border-r border-border-default z-40 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border-default scrollbar-track-transparent hover:scrollbar-thumb-accent-primary"
+      >
         <div className="flex flex-col items-center py-8 gap-6">
           {(Object.keys(stepLabels) as PipelineStep[]).map((step, index) => {
             const stepState = steps[step];
@@ -143,11 +252,21 @@ export default function PipelineSpine() {
             const isLocked = stepState.status === 'locked';
             const isCompleted = stepState.status === 'completed';
             const isError = stepState.status === 'error';
+            
+            // Check if previous step is completed to connect the line
+            const prevStep = index > 0 ? stepOrder[index - 1] : null;
+            const prevStepCompleted = prevStep ? steps[prevStep]?.status === 'completed' : false;
+            const shouldConnectLine = isCompleted || prevStepCompleted;
 
             return (
-              <div key={step} className="flex flex-col items-center gap-2">
+              <div 
+                key={step} 
+                ref={(el) => { stepContainerRefs.current[step] = el; }}
+                className="flex flex-col items-center gap-2"
+              >
                 {/* Step circle */}
                 <motion.button
+                  ref={(el) => { stepButtonRefs.current[step] = el; }}
                   onClick={() => handleStepClick(step)}
                   disabled={isLocked}
                   className={`
@@ -155,12 +274,12 @@ export default function PipelineSpine() {
                     transition-all duration-fast
                     ${isLocked ? 'bg-bg-interactive text-text-disabled cursor-not-allowed' : ''}
                     ${isCurrent ? 'bg-accent-primary text-text-primary glow-pulse' : ''}
-                    ${isCompleted && !isCurrent ? 'bg-bg-surface border-2 border-accent-primary text-accent-primary' : ''}
+                    ${isCompleted && !isCurrent ? 'bg-bg-surface border-2 border-accent-primary text-accent-primary glow-interactive' : ''}
                     ${isError ? 'bg-bg-surface border-2 border-error text-error' : ''}
-                    ${!isLocked && !isCurrent && !isCompleted && !isError ? 'bg-bg-surface border-2 border-border-default text-text-secondary hover:border-accent-primary' : ''}
+                    ${!isLocked && !isCurrent && !isCompleted && !isError ? 'bg-bg-surface border-2 border-border-default text-text-secondary hover:border-accent-primary hover:glow-interactive' : ''}
                   `}
-                  whileHover={!isLocked ? { scale: 1.05 } : {}}
-                  whileTap={!isLocked ? { scale: 0.95 } : {}}
+                  whileHover={!isLocked ? { scale: 1.1 } : {}}
+                  whileTap={!isLocked ? { scale: 0.9 } : {}}
                   title={isLocked ? 'Complete previous steps first' : stepLabels[step]}
                 >
                   {isCompleted ? (
@@ -209,7 +328,7 @@ export default function PipelineSpine() {
                     ref={(el) => { lineRefs.current[step] = el; }}
                     className={`
                       w-0.5 h-6 transition-colors duration-300
-                      ${isCompleted ? 'bg-accent-primary' : 'bg-border-default'}
+                      ${shouldConnectLine ? 'bg-accent-primary' : 'bg-border-default'}
                     `} 
                   />
                 )}
@@ -220,7 +339,10 @@ export default function PipelineSpine() {
       </div>
 
       {/* Mobile: Horizontal bottom bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-bg-elevated border-t border-border-default z-40 overflow-x-auto">
+      <div 
+        ref={mobileScrollContainerRef}
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-bg-elevated border-t border-border-default z-40 overflow-x-auto scrollbar-thin scrollbar-thumb-border-default scrollbar-track-transparent hover:scrollbar-thumb-accent-primary"
+      >
         <div className="flex items-center justify-around py-3 px-2 min-w-max">
           {(Object.keys(stepLabels) as PipelineStep[]).map((step, index) => {
             const stepState = steps[step];
@@ -228,9 +350,18 @@ export default function PipelineSpine() {
             const isLocked = stepState.status === 'locked';
             const isCompleted = stepState.status === 'completed';
             const isError = stepState.status === 'error';
+            
+            // Check if previous step is completed to connect the line
+            const prevStep = index > 0 ? stepOrder[index - 1] : null;
+            const prevStepCompleted = prevStep ? steps[prevStep]?.status === 'completed' : false;
+            const shouldConnectLine = isCompleted || prevStepCompleted;
 
             return (
-              <div key={step} className="flex items-center gap-2">
+              <div 
+                key={step} 
+                ref={(el) => { stepContainerRefs.current[step] = el; }}
+                className="flex items-center gap-2"
+              >
                 <motion.button
                   onClick={() => handleStepClick(step)}
                   disabled={isLocked}
@@ -257,8 +388,8 @@ export default function PipelineSpine() {
                 {/* Connecting line */}
                 {index < Object.keys(stepLabels).length - 1 && (
                   <div className={`
-                    w-6 h-0.5
-                    ${isCompleted ? 'bg-accent-primary' : 'bg-border-default'}
+                    w-6 h-0.5 transition-colors duration-300
+                    ${shouldConnectLine ? 'bg-accent-primary' : 'bg-border-default'}
                   `} />
                 )}
               </div>

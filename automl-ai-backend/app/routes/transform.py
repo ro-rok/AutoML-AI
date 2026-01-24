@@ -8,6 +8,7 @@ from datetime import datetime
 from app.routes.upload import session_store
 from app.routes.clean import snapshot_store, idempotency_store
 from app.utils.preprocessing import apply_encoding, apply_scaling, apply_skewness_fix
+from app.utils.mongodb_client import save_dataset
 from imblearn.over_sampling import SMOTE, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 
@@ -243,6 +244,14 @@ async def apply_transform(request: TransformApplyRequest):
             "status": "completed",
             "completed_at": datetime.utcnow().isoformat(),
         }
+        
+        # Save transformed dataset to MongoDB for training
+        try:
+            dataset_dict = df_transformed.replace({np.nan: None}).to_dict(orient="records")
+            save_dataset(session_id, dataset_dict)
+        except Exception as e:
+            # Log but don't fail - in-memory store is still available
+            print(f"Warning: Failed to save dataset to MongoDB after transform: {e}")
         
         response_data = {
             "success": True,

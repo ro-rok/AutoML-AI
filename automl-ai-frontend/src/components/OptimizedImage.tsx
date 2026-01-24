@@ -9,6 +9,7 @@ interface OptimizedImageProps {
   height?: number;
   loading?: 'lazy' | 'eager';
   fallback?: string; // Fallback image if WebP fails
+  onLoad?: () => void; // Callback when image loads
 }
 
 /**
@@ -24,6 +25,7 @@ export default function OptimizedImage({
   height,
   loading = 'lazy',
   fallback,
+  onLoad,
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -89,7 +91,10 @@ export default function OptimizedImage({
         width={width}
         height={height}
         loading={loading}
-        onLoad={() => setIsLoaded(true)}
+        onLoad={() => {
+          setIsLoaded(true);
+          onLoad?.();
+        }}
         onError={() => {
           setHasError(true);
           if (!fallback) {

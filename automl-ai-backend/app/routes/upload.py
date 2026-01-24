@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import List, Dict, Optional
 import traceback
 import numpy as np
-from app.utils.mongodb_client import save_session
+from app.utils.mongodb_client import save_session, save_dataset
 from app.utils.error_responses import (
     file_too_large_error,
     invalid_file_format_error,
@@ -201,6 +201,14 @@ async def upload_dataset(file: UploadFile = File(...)):
             )
         except Exception as e:
             print(f"Warning: Failed to persist session to MongoDB: {e}")
+            # Continue anyway - in-memory store is still available
+        
+        # Save dataset to MongoDB for training
+        try:
+            dataset_dict = df.replace({np.nan: None}).to_dict(orient="records")
+            save_dataset(session_id, dataset_dict)
+        except Exception as e:
+            print(f"Warning: Failed to save dataset to MongoDB: {e}")
             # Continue anyway - in-memory store is still available
         
         # Generate preview (first 10 rows)

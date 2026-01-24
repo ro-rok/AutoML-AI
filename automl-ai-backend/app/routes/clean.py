@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from app.routes.upload import session_store
-from app.utils.mongodb_client import get_session
+from app.utils.mongodb_client import get_session, save_dataset
 
 router = APIRouter()
 
@@ -231,6 +231,14 @@ async def apply_cleaning(request: CleanApplyRequest):
             "status": "completed",
             "completed_at": datetime.utcnow().isoformat(),
         }
+        
+        # Save cleaned dataset to MongoDB for training
+        try:
+            dataset_dict = df_cleaned.replace({np.nan: None}).to_dict(orient="records")
+            save_dataset(session_id, dataset_dict)
+        except Exception as e:
+            # Log but don't fail - in-memory store is still available
+            print(f"Warning: Failed to save dataset to MongoDB after cleaning: {e}")
         
         response_data = {
             "success": True,

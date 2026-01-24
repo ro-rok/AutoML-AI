@@ -1,9 +1,11 @@
 // src/pages/TrainPage.tsx
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Switch } from '@headlessui/react'
 import { FiPlay, FiLoader, FiCheckCircle, FiAlertCircle } from 'react-icons/fi'
 import { api } from '../api/client'
 import { useSessionStore } from '../store/useSessionStore'
+import { usePipelineStore } from '../store/useStepStore'
 
 // Full display names for each model
 const MODEL_NAMES: Record<string, string> = {
@@ -342,6 +344,28 @@ export default function TrainPage() {
               </div>
             )
           })}
+        </div>
+
+        {/* Continue to Results Button */}
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={() => {
+              completeStep('train');
+              navigate('/results');
+            }}
+            className="
+              py-3 px-8 
+              bg-red-500 hover:bg-red-600 
+              text-white font-semibold text-lg rounded-lg
+              transition-all duration-200
+              hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]
+              hover:-translate-y-0.5
+              focus:outline-none focus:ring-3 focus:ring-red-500/50
+              flex items-center gap-2
+            "
+          >
+            Continue to Results →
+          </button>
         </div>
       </div>
     )
