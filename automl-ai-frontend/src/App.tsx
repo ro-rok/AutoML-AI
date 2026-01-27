@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from "react-hot-toast"
 import { toast } from "react-hot-toast"
 import { api } from "./api/client"
-import { Analytics } from "@vercel/analytics/react"
 import { PAGE_TRANSITION } from "./utils/motionConstants"
 import { useSessionRestoration } from "./hooks/useSessionRestoration"
 import { useLenis } from "./hooks/useLenis"
@@ -249,7 +248,6 @@ export default function App() {
               }}
             />
           </div>
-          <Analytics />
         </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>
