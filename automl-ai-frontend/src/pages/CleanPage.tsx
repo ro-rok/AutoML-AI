@@ -25,7 +25,7 @@ export default function CleanPage() {
 
   // State
   const [loading, setLoading] = useState(true);
-  const [schema, setSchema] = useState<any[]>([]);
+  const [, setSchema] = useState<any[]>([]);
   const [columnsWithMissing, setColumnsWithMissing] = useState<any[]>([]);
   const [strategies, setStrategies] = useState<Record<string, CleaningOperation>>({});
   const [preview, setPreview] = useState<PreviewDiff | null>(null);

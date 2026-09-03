@@ -174,3 +174,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .gitignore
+AutoML-AI_LinkedIn_Posts.md

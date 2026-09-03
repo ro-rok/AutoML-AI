@@ -92,7 +92,7 @@ export default function SchemaTable({
   }
 
   // Render a single schema row
-  const renderRow = (col: SchemaColumn, index: number, style?: React.CSSProperties) => (
+  const renderRow = (col: SchemaColumn, _index: number, style?: React.CSSProperties) => (
     <tr
       key={col.name}
       className={`

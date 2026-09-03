@@ -15,7 +15,7 @@ interface VirtualScrollResult {
     size: number;
   }>;
   totalHeight: number;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**

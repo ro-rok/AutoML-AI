@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { FiUploadCloud, FiLoader, FiAlertCircle, FiCheckCircle, FiX } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { gsap } from 'gsap'
@@ -152,7 +152,7 @@ export default function UploadPage() {
             const speed = loadedDiff / timeDiff
             setUploadProgress({
               loaded: progressEvent.loaded || 0,
-              total: progressEvent.total || file.size,
+              total: progressEvent.total || fileToUse.size,
               speed,
             })
             lastLoaded = progressEvent.loaded || 0
@@ -408,9 +408,9 @@ export default function UploadPage() {
             {/* Upload Button */}
             {file && !loading && (
               <button
-                onClick={handleUpload}
+                onClick={() => handleUpload()}
                 className="
-                  mt-6 w-full py-4 px-6 
+                  mt-6 w-full py-4 px-6
                   bg-red-500 hover:bg-red-600 
                   text-white font-semibold text-lg rounded-lg
                   transition-all duration-200

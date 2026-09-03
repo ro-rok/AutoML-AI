@@ -60,8 +60,10 @@ interface JobStatus {
 }
 
 export default function TrainPage() {
+  const navigate = useNavigate()
   const { sessionId } = useSessionStore()
-  
+  const { completeStep } = usePipelineStore()
+
   // Model selection state
   const [selectedModels, setSelectedModels] = useState<Set<string>>(
     new Set(['logistic', 'random_forest', 'xgboost'])

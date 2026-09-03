@@ -23,7 +23,7 @@ api.interceptors.request.use(
     if (import.meta.env.DEV) {
       console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
         baseURL: config.baseURL,
-        data: config.data instanceof FormData ? `FormData (${config.data.get('file')?.name || 'unknown'})` : config.data,
+        data: config.data instanceof FormData ? `FormData (${(config.data.get('file') as File | null)?.name || 'unknown'})` : config.data,
       });
     }
 
